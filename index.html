@@ -7,9 +7,11 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- Sternenfeld im Hintergrund -->
     <div id="star-field" class="star-field"></div>
 
     <div class="container">
+        <!-- Der optimierte An-/Aus-Bereich -->
         <div class="power-control">
             <span class="power-label">Core System</span>
             <label class="switch">
@@ -20,14 +22,23 @@
 
         <h1 class="title">GARMIN</h1>
         
-        <div class="core-wrapper">
-            <div class="core-ring outer-ring" id="outerRing"></div>
-            <div class="core-ring middle-ring" id="middleRing"></div>
-            <div class="orb" id="orb"></div>
+        <!-- Das visuelle Core-System mit seitlichen Textfeldern -->
+        <div class="terminal-layout">
+            <!-- Linke Seite: Garmins Antwort -->
+            <div class="side-panel left-panel" id="leftOutput"></div>
+
+            <!-- Mitte: Der Core -->
+            <div class="core-wrapper">
+                <div class="core-ring outer-ring" id="outerRing"></div>
+                <div class="core-ring middle-ring" id="middleRing"></div>
+                <div class="orb" id="orb"></div>
+            </div>
+
+            <!-- Rechte Seite: Deine Frage -->
+            <div class="side-panel right-panel" id="rightOutput"></div>
         </div>
 
         <p class="status" id="status">System offline</p>
-        <p class="output" id="output"></p>
     </div>
     <script src="index.js"></script>
 </body>

@@ -77,6 +77,7 @@ body.system-active .star-field {
     display: flex;
     justify-content: center;
     align-items: center;
+    flex-shrink: 0;
 }
 
 /* Die Ringe, die sich zum Core entwickeln */
@@ -226,17 +227,17 @@ body.system-listening .orb {
     box-shadow: 0 2px 4px rgba(0,0,0,0.4);
 }
 
-/* Wenn AN: Gehäuse leuchtet auf */
+/* Schalter-Farbe synchronisiert sich jetzt dynamisch! */
 input:checked + .slider {
-    border-color: var(--neon-cyan);
-    box-shadow: 0 0 15px var(--neon-glow);
+    border-color: var(--current-star-color, var(--neon-cyan));
+    box-shadow: 0 0 15px var(--current-star-glow, var(--neon-glow));
 }
 
-/* Wenn AN: Der Pin glüht und schnippst nach rechts */
+/* Wenn AN: Der Pin glüht in der aktuellen Systemfarbe */
 input:checked + .slider:before {
     transform: translateX(32px);
     background-color: #ffffff;
-    box-shadow: 0 0 10px #ffffff, 0 0 20px var(--neon-cyan);
+    box-shadow: 0 0 10px #ffffff, 0 0 20px var(--current-star-color, var(--neon-cyan));
 }
 
 /* === RESTELEMENTE === */
@@ -257,17 +258,61 @@ input:checked + .slider:before {
     text-transform: uppercase;
 }
 
-.output {
+/* === Terminal Layout für Nebeneinander-Darstellung === */
+.terminal-layout {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 40px;
+    width: 90vw;
+    max-width: 950px;
+    min-height: 250px;
+}
+
+/* Die seitlichen Textpaneele */
+.side-panel {
+    flex: 1;
     font-size: 1.1rem;
-    max-width: 300px;
     line-height: 1.5;
-    min-height: 50px;
+    transition: all 0.5s ease;
+    min-width: 220px;
+    opacity: 0; /* Unsichtbar, wenn leer */
+}
+
+/* Linke Seite (Antwort) richtet sich nach rechts aus, um dem Core nah zu sein */
+.left-panel {
+    text-align: right;
+    color: #ffffff;
+    text-shadow: 0 0 10px var(--neon-glow);
+    font-weight: bold;
+}
+
+/* Rechte Seite (Frage) richtet sich nach links aus */
+.right-panel {
+    text-align: left;
     color: var(--neon-cyan);
     font-style: italic;
+    opacity: 0.6;
     text-shadow: 0 0 8px rgba(0, 242, 254, 0.4);
+}
+
+/* Wenn Text vorhanden ist, blenden wir die Paneele weich ein */
+.side-panel.active {
+    opacity: 1;
 }
 
 @keyframes pulse {
     0% { transform: scale(1); box-shadow: 0 0 30px rgba(255, 8, 68, 0.4); }
     100% { transform: scale(1.1); box-shadow: 0 0 65px rgba(255, 8, 68, 0.9); }
+}
+
+/* Mobil-Optimierung: Wenn der Bildschirm zu klein ist, untereinander stapeln */
+@media (max-width: 768px) {
+    .terminal-layout {
+        flex-direction: column-reverse;
+        gap: 20px;
+    }
+    .left-panel, .right-panel {
+        text-align: center;
+    }
 }

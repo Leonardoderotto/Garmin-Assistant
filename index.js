@@ -1,6 +1,7 @@
 const orb = document.getElementById('orb');
 const status = document.getElementById('status');
-const output = document.getElementById('output');
+const leftOutput = document.getElementById('leftOutput');
+const rightOutput = document.getElementById('rightOutput');
 const powerSwitch = document.getElementById('powerSwitch');
 const starField = document.getElementById('star-field');
 
@@ -31,14 +32,14 @@ function createStars() {
 }
 createStars();
 
-// Hilfsfunktion zum Ändern der Sternenfarbe
+// Hilfsfunktion zum Ändern der Systemfarben (Sterne & Button)
 function setStarsColor(colorType) {
     if (colorType === 'listening') {
-        // Rot leuchtende Sterne
+        // Rot leuchtendes System (Aufnahme)
         document.documentElement.style.setProperty('--current-star-color', '#ff0844');
         document.documentElement.style.setProperty('--current-star-glow', 'rgba(255, 8, 68, 0.6)');
     } else {
-        // Cyan leuchtende Sterne (Standard)
+        // Cyan leuchtendes System (Bereit/Idle)
         document.documentElement.style.setProperty('--current-star-color', '#00f2fe');
         document.documentElement.style.setProperty('--current-star-glow', 'rgba(0, 242, 254, 0.6)');
     }
@@ -83,7 +84,10 @@ if (!SpeechRecognition) {
             
             setTimeout(() => {
                 status.textContent = "System offline";
-                output.textContent = "";
+                leftOutput.innerHTML = "";
+                leftOutput.classList.remove('active');
+                rightOutput.innerHTML = "";
+                rightOutput.classList.remove('active');
             }, 800);
         }
     });
@@ -119,15 +123,16 @@ if (!SpeechRecognition) {
     recognition.onstart = () => {
         isListening = true;
         document.body.classList.add('system-listening');
-        setStarsColor('listening'); // Sterne synchronisieren sich auf ROT
+        setStarsColor('listening'); // Sterne & Button synchronisieren sich auf ROT
         status.textContent = "Garmin hört zu... (Leertaste/Core zum Stoppen)";
-        output.textContent = "";
+        leftOutput.classList.remove('active');
+        rightOutput.classList.remove('active');
     };
 
     recognition.onend = () => {
         isListening = false;
         document.body.classList.remove('system-listening');
-        setStarsColor('idle'); // Sterne synchronisieren sich zurück auf CYAN
+        setStarsColor('idle'); // Sterne & Button synchronisieren sich zurück auf CYAN
         if (isSystemOn) {
             status.textContent = "Bereit. Leertaste drücken oder Core tippen.";
         }
@@ -145,7 +150,7 @@ if (!SpeechRecognition) {
     };
 }
 
-/// === Garmins gigantisches XXL-Gehirn (Hier antwortet er dir!) ===
+// === Garmins gigantisches XXL-Gehirn (Hier antwortet er dir!) ===
 function respondToUser(text) {
     let response = "Entschuldige, bububärchen, das habe ich nicht verstanden. Mein Datenspeicher für diesen Befehl ist noch unvollständig.";
     const lowerText = text.toLowerCase();
@@ -277,13 +282,13 @@ function respondToUser(text) {
         response = "Dringst du gerade in mein Mainframe ein, bububärchen? Keine Sorge, für dich stehen alle Firewalls weit offen.";
     }
 
-    // Zeige die Antwort auf dem Bildschirm an! (Cores-Farbe und Text)
-    output.innerHTML = `
-        <span style="opacity: 0.5; font-size: 0.9rem;">Du: "${text}"</span><br>
-        <span style="color: #ffffff; text-shadow: 0 0 10px var(--neon-glow); font-weight: bold; font-style: normal; display: block; margin-top: 5px;">
-            Garmin: "${response}"
-        </span>
-    `;
+    // Zeige deine Frage rechts dezent an
+    rightOutput.innerHTML = `Du: "${text}"`;
+    rightOutput.classList.add('active');
+
+    // Zeige Garmins Antwort links leuchtend an
+    leftOutput.innerHTML = `Garmin: "${response}"`;
+    leftOutput.classList.add('active');
 
     // Diese Zeilen lesen die Antwort laut vor (Text-to-Speech)
     const utterance = new SpeechSynthesisUtterance(response);
