@@ -8,9 +8,10 @@ const fullscreenBtn = document.getElementById('fullscreenBtn');
 const canvas = document.getElementById('visualizerCanvas');
 const canvasCtx = canvas.getContext('2d');
 
-// API-Key Elemente
+// API-Key Elemente (Neu deklariert fürs Modal)
 const settingsBtn = document.getElementById('settingsBtn');
-const settingsDropdown = document.getElementById('settingsDropdown');
+const modalOverlay = document.getElementById('modalOverlay');
+const closeModalBtn = document.getElementById('closeModalBtn');
 const apiKeyInput = document.getElementById('apiKeyInput');
 const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
 
@@ -29,16 +30,28 @@ let visualizerAnimationId;
 let apiKey = localStorage.getItem('garmin_openai_apikey') || '';
 if (apiKey) apiKeyInput.value = apiKey;
 
-// Dropdown umschalten
+// Modal öffnen
 settingsBtn.addEventListener('click', () => {
-    settingsDropdown.classList.toggle('active');
+    modalOverlay.classList.add('active');
+});
+
+// Modal schließen (Abbrechen)
+closeModalBtn.addEventListener('click', () => {
+    modalOverlay.classList.remove('active');
+});
+
+// Modal schließen, wenn man außerhalb des Fensters klickt
+modalOverlay.addEventListener('click', (e) => {
+    if (e.target === modalOverlay) {
+        modalOverlay.classList.remove('active');
+    }
 });
 
 // API-Key speichern
 saveApiKeyBtn.onclick = () => {
     apiKey = apiKeyInput.value.trim();
     localStorage.setItem('garmin_openai_apikey', apiKey);
-    settingsDropdown.classList.remove('active');
+    modalOverlay.classList.remove('active');
     alert('API Key erfolgreich verschlüsselt im Browser gespeichert, bububärchen! 🚀');
 };
 
@@ -358,13 +371,13 @@ async function respondToUser(text) {
     leftOutput.innerHTML = `Garmin: "${response}"`;
     leftOutput.classList.add('active');
 
-    // === HIER STARTET DIE SPRACHAUSGABE ===
-    window.speechSynthesis.cancel(); // Laufende Sätze stoppen
+    // === SPRACHAUSGABE ===
+    window.speechSynthesis.cancel(); // Stoppt vorherige Sprachausgaben
     
     const utterance = new SpeechSynthesisUtterance(response);
     utterance.lang = 'de-DE';
-    utterance.pitch = 1.1; // Etwas höher und freundlicher
-    utterance.rate = 1.0;  // Normale Sprechgeschwindigkeit
+    utterance.pitch = 1.1; // Erhöht die Tonhöhe für einen netteren Sound
+    utterance.rate = 1.0; 
 
     // Suche nach einer schönen deutschen Stimme
     const voices = window.speechSynthesis.getVoices();
@@ -373,10 +386,9 @@ async function respondToUser(text) {
         utterance.voice = germanVoice;
     }
 
-    // Fehler-Logging für die Konsole, falls es hakt
     utterance.onerror = (e) => console.error("Fehler bei der Sprachausgabe:", e);
 
-    // Abspielen!
+    // Jetzt vorlesen!
     window.speechSynthesis.speak(utterance);
 }
 
