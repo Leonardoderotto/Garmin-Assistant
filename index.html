@@ -4,15 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Garmin Assistant</title>
-    <!-- Einbindung der futuristischen J.A.R.V.I.S.-Schriftart -->
     <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Sternenfeld im Hintergrund -->
     <div id="star-field" class="star-field"></div>
 
-    <!-- Vollbild-Knopf oben rechts -->
     <button id="fullscreenBtn" class="fullscreen-btn" title="Vollbild umschalten">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
@@ -20,7 +17,6 @@
     </button>
 
     <div class="container">
-        <!-- Der optimierte An-/Aus-Bereich -->
         <div class="power-control">
             <span class="power-label">Core System</span>
             <label class="switch">
@@ -29,21 +25,22 @@
             </label>
         </div>
         
-        <!-- Das visuelle Core-System mit J.A.R.V.I.S.-Verschmelzung -->
         <div class="terminal-layout">
-            <!-- Linke Seite: Garmins Antwort -->
             <div class="side-panel left-panel" id="leftOutput"></div>
 
-            <!-- Mitte: Der fusionierte Core -->
             <div class="core-wrapper">
                 <div class="core-ring outer-ring" id="outerRing"></div>
-                <div class="core-ring middle-ring" id="middleRing"></div>
+                
+                <div class="core-ring middle-ring" id="middleRing">
+                    <div class="radar-dot" id="radarDot"></div>
+                </div>
+                
+                <canvas id="visualizerCanvas" class="visualizer-canvas"></canvas>
+                
                 <div class="orb" id="orb"></div>
-                <!-- Der zentrierte, integrierte Schriftzug -->
                 <h1 class="core-title" id="coreTitle">G.A.R.M.I.N</h1>
             </div>
 
-            <!-- Rechte Seite: Deine Frage -->
             <div class="side-panel right-panel" id="rightOutput"></div>
         </div>
 

@@ -5,11 +5,160 @@ const rightOutput = document.getElementById('rightOutput');
 const powerSwitch = document.getElementById('powerSwitch');
 const starField = document.getElementById('star-field');
 const fullscreenBtn = document.getElementById('fullscreenBtn');
+const canvas = document.getElementById('visualizerCanvas');
+const canvasCtx = canvas.getContext('2d');
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 let isListening = false;
 let isSystemOn = false;
+
+// Web Audio API Kontext für Visualizer & Sound-Synthese
+let audioCtx;
+let analyser;
+let micStream;
+let visualizerAnimationId;
+
+// === WEBAUDIO SOUND-SYNTHESE (Sci-Fi Chirps) ===
+function playSound(type) {
+    // Falls AudioCtx noch nicht initialisiert ist
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+
+    const osc = audioCtx.createOscillator();
+    const gainNode = audioCtx.createGain();
+    
+    osc.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+
+    const now = audioCtx.currentTime;
+
+    if (type === 'boot') {
+        // Tiefer, mächtiger ansteigender Sci-Fi-Sound
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(60, now);
+        osc.frequency.exponentialRampToValueAtTime(280, now + 0.8);
+        
+        gainNode.gain.setValueAtTime(0.001, now);
+        gainNode.gain.linearRampToValueAtTime(0.12, now + 0.1);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+        
+        osc.start(now);
+        osc.stop(now + 0.8);
+
+    } else if (type === 'listening') {
+        // Heller, doppelter J.A.R.V.I.S.-Zuhör-Chirp (Ditt-Dütt!)
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.setValueAtTime(1200, now + 0.08);
+        
+        gainNode.gain.setValueAtTime(0.08, now);
+        gainNode.gain.setValueAtTime(0.08, now + 0.08);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+        
+        osc.start(now);
+        osc.stop(now + 0.2);
+
+    } else if (type === 'error') {
+        // Melancholischer, abfallender Fehlerton
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(350, now);
+        osc.frequency.linearRampToValueAtTime(120, now + 0.5);
+        
+        gainNode.gain.setValueAtTime(0.1, now);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+        
+        osc.start(now);
+        osc.stop(now + 0.5);
+    }
+}
+
+// === ECHTER AUDIO VISUALIZER ===
+async function initVisualizer() {
+    if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+    }
+
+    try {
+        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        const source = audioCtx.createMediaStreamSource(micStream);
+        
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 64; // Kleine FFT-Größe für feine, dicke Balken im Kreis
+        source.connect(analyser);
+        
+        drawVisualizer();
+    } catch (err) {
+        console.warn("Mikrofonzugriff für Visualizer verweigert oder nicht verfügbar.", err);
+    }
+}
+
+function stopVisualizer() {
+    if (micStream) {
+        micStream.getTracks().forEach(track => track.stop());
+    }
+    cancelAnimationFrame(visualizerAnimationId);
+    canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+}
+
+function drawVisualizer() {
+    canvas.width = canvas.clientWidth;
+    canvas.height = canvas.clientHeight;
+
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const radius = 68; // Perfekt im Inneren des Hauptkreises platziert
+
+    function draw() {
+        visualizerAnimationId = requestAnimationFrame(draw);
+        analyser.getByteFrequencyData(dataArray);
+
+        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const barsCount = 28;
+        const color = isListening ? '#ff0844' : '#00f2fe';
+
+        for (let i = 0; i < barsCount; i++) {
+            // Symmetrischer Soundwellen-Effekt
+            const value = dataArray[i % (bufferLength / 2)] / 255.0;
+            const barHeight = value * 22; // Maximale Ausschlagshöhe der Welle
+
+            const angle = (i / barsCount) * Math.PI * 2;
+            
+            // Startpunkt auf der Kreislinie
+            const xStart = centerX + Math.cos(angle) * radius;
+            const yStart = centerY + Math.sin(angle) * radius;
+
+            // Endpunkt wächst radial nach außen
+            const xEnd = centerX + Math.cos(angle) * (radius + barHeight);
+            const yEnd = centerY + Math.sin(angle) * (radius + barHeight);
+
+            // Zeichne die feine, leuchtende Soundbarke
+            canvasCtx.beginPath();
+            canvasCtx.moveTo(xStart, yStart);
+            canvasCtx.lineTo(xEnd, yEnd);
+            canvasCtx.strokeStyle = color;
+            canvasCtx.lineWidth = 3;
+            canvasCtx.lineCap = 'round';
+            canvasCtx.shadowBlur = 6;
+            canvasCtx.shadowColor = color;
+            canvasCtx.stroke();
+        }
+    }
+    draw();
+}
 
 // === VOLLBILD LOGIK ===
 fullscreenBtn.addEventListener('click', () => {
@@ -68,6 +217,7 @@ if (!SpeechRecognition) {
         isSystemOn = event.target.checked;
 
         if (isSystemOn) {
+            playSound('boot'); // Tiefer Sci-Fi Aktivierungs-Sound
             document.body.classList.add('system-active');
             setStarsColor('idle');
             status.textContent = "Initialisiere Core-Verbindung...";
@@ -85,6 +235,7 @@ if (!SpeechRecognition) {
             if (isListening) {
                 recognition.stop();
             }
+            stopVisualizer();
             status.textContent = "System fährt herunter...";
             document.body.classList.remove('system-listening', 'system-active');
             
@@ -125,17 +276,23 @@ if (!SpeechRecognition) {
 
     recognition.onstart = () => {
         isListening = true;
+        playSound('listening'); // Heller Doppel-Chirp
         document.body.classList.add('system-listening');
         setStarsColor('listening');
         status.textContent = "Garmin hört zu... (Leertaste/Core zum Stoppen)";
         leftOutput.classList.remove('active');
         rightOutput.classList.remove('active');
+        
+        // Starte den echten Voice-Visualizer
+        initVisualizer();
     };
 
     recognition.onend = () => {
         isListening = false;
         document.body.classList.remove('system-listening');
         setStarsColor('idle');
+        stopVisualizer(); // Visualizer anhalten, wenn Zuhören stoppt
+        
         if (isSystemOn) {
             status.textContent = "Bereit. Leertaste drücken oder Core tippen.";
         }
@@ -148,6 +305,7 @@ if (!SpeechRecognition) {
 
     recognition.onerror = (event) => {
         if (event.error === 'no-speech' && isSystemOn) {
+            playSound('error'); // Fehler-Sound abspielen
             status.textContent = "Kein Audio erkannt. Erneut versuchen.";
         }
     };

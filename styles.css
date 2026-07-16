@@ -104,27 +104,42 @@ body.system-active .star-field {
     flex-shrink: 0;
 }
 
-/* J.A.R.V.I.S. Schriftzug in der Mitte - Optimiert auf exakten Bildlook */
+/* J.A.R.V.I.S. Schriftzug in der Mitte mit Boot-Up-Flicker-Effekt */
 .core-title {
     position: absolute;
     font-size: 1.9rem;
-    font-weight: 900; /* Extra bold für den geometrischen Look */
-    letter-spacing: 0.8rem; /* Breites Spacing wie im Bild */
+    font-weight: 900;
+    letter-spacing: 0.8rem;
     color: #ffffff;
     background-color: var(--bg-color);
-    padding: 2px 24px 2px 32px; /* Perfekter horizontaler Ausgleich für das Spacing */
+    padding: 2px 24px 2px 32px;
     margin: 0;
     z-index: 10;
     text-shadow: 0 0 12px var(--current-star-glow, var(--neon-glow));
     pointer-events: none;
     transform: scale(0.8);
     opacity: 0;
-    transition: all 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+    transition: transform 1s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
+/* Wenn das System aktiv ist, triggert das Flackern */
 body.system-active .core-title {
     opacity: 1;
     transform: scale(1);
+    animation: bootUpFlicker 0.8s ease-out forwards;
+}
+
+/* Boot-Up-Flackern Animation */
+@keyframes bootUpFlicker {
+    0% { opacity: 0; text-shadow: none; }
+    10% { opacity: 0.8; text-shadow: 0 0 8px var(--neon-glow); }
+    15% { opacity: 0.2; text-shadow: none; }
+    30% { opacity: 1; text-shadow: 0 0 15px var(--neon-glow); }
+    35% { opacity: 0.4; }
+    45% { opacity: 0.9; }
+    50% { opacity: 0.1; }
+    65% { opacity: 1; text-shadow: 0 0 15px var(--neon-glow); }
+    100% { opacity: 1; }
 }
 
 /* Die Ringe, die sich zum Core entwickeln */
@@ -153,6 +168,24 @@ body.system-active .core-title {
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
 }
 
+/* Kreisender Radar-Punkt auf dem Hauptring */
+.radar-dot {
+    position: absolute;
+    top: -5px; /* Perfekt positioniert auf dem 2px breiten Rand */
+    left: calc(50% - 5px);
+    width: 10px;
+    height: 10px;
+    background-color: var(--neon-cyan);
+    border-radius: 50%;
+    box-shadow: 0 0 12px #ffffff, 0 0 20px var(--neon-cyan);
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+body.system-active .radar-dot {
+    opacity: 1;
+}
+
 /* Wenn das System aktiv ist: Ringe entfalten sich */
 body.system-active .outer-ring {
     opacity: 0.3;
@@ -162,11 +195,11 @@ body.system-active .outer-ring {
 
 body.system-active .middle-ring {
     opacity: 0.95;
-    transform: scale(1) rotate(-360deg);
-    animation: rotateCounterClockwise 20s linear infinite;
+    transform: scale(1) rotate(360deg); /* Im Uhrzeigersinn drehen für den Radar-Punkt */
+    animation: rotateClockwise 6s linear infinite; /* 6s für einen vollen Umlauf */
 }
 
-/* Ring-Zustand bei Sprachaufnahme */
+/* Ring-Zustand bei Sprachaufnahme (Wird rot) */
 body.system-listening .outer-ring {
     border-color: rgba(255, 8, 68, 0.15);
 }
@@ -176,14 +209,29 @@ body.system-listening .middle-ring {
     box-shadow: 0 0 20px var(--neon-red-glow);
 }
 
+body.system-listening .radar-dot {
+    background-color: var(--neon-red);
+    box-shadow: 0 0 12px #ffffff, 0 0 20px var(--neon-red);
+}
+
 @keyframes rotateClockwise {
     from { transform: rotate(0deg); }
     to { transform: rotate(360deg); }
 }
 
-@keyframes rotateCounterClockwise {
-    from { transform: rotate(360deg); }
-    to { transform: rotate(0deg); }
+/* Canvas für den echten Audio-Visualizer */
+.visualizer-canvas {
+    position: absolute;
+    width: 180px;
+    height: 180px;
+    z-index: 3;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.5s ease;
+}
+
+body.system-listening .visualizer-canvas {
+    opacity: 0.8;
 }
 
 /* === DER CORE (ORB) === */
@@ -209,9 +257,19 @@ body.system-active .orb {
     pointer-events: auto;
 }
 
+/* Pulsieren im Ruhezustand */
+body.system-active:not(.system-listening) .orb {
+    animation: calmPulse 4s infinite alternate ease-in-out;
+}
+
+@keyframes calmPulse {
+    0% { transform: scale(0.97); opacity: 0.8; }
+    100% { transform: scale(1.03); opacity: 1; }
+}
+
 body.system-listening .orb {
-    animation: pulse 1s infinite alternate cubic-bezier(0.455, 0.03, 0.515, 0.955);
-    background: radial-gradient(circle, rgba(255, 8, 68, 0.3) 0%, rgba(255, 8, 68, 0) 70%);
+    /* Kein CSS-Pulsieren mehr nötig, da der echte Visualizer auf die Stimme reagiert! */
+    background: radial-gradient(circle, rgba(255, 8, 68, 0.2) 0%, rgba(255, 8, 68, 0) 70%);
 }
 
 /* === NEON-SCHALTER === */
@@ -322,11 +380,6 @@ input:checked + .slider:before {
 
 .side-panel.active {
     opacity: 1;
-}
-
-@keyframes pulse {
-    0% { transform: scale(1); opacity: 0.8; }
-    100% { transform: scale(1.05); opacity: 1; }
 }
 
 @media (max-width: 768px) {
