@@ -170,4 +170,3 @@ function respondToUser(text) {
     const utterance = new SpeechSynthesisUtterance(response);
     utterance.lang = 'de-DE';
     window.speechSynthesis.speak(utterance);
-}
