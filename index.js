@@ -4,13 +4,25 @@ const leftOutput = document.getElementById('leftOutput');
 const rightOutput = document.getElementById('rightOutput');
 const powerSwitch = document.getElementById('powerSwitch');
 const starField = document.getElementById('star-field');
+const fullscreenBtn = document.getElementById('fullscreenBtn');
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 let isListening = false;
 let isSystemOn = false;
 
-// Sterne automatisch im Hintergrund generieren
+// === VOLLBILD LOGIK ===
+fullscreenBtn.addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(err => {
+            console.log(`Fehler beim Aktivieren des Vollbildmodus: ${err.message}`);
+        });
+    } else {
+        document.exitFullscreen();
+    }
+});
+
+// Sterne im Hintergrund generieren
 function createStars() {
     const starCount = 45;
     for (let i = 0; i < starCount; i++) {
@@ -32,14 +44,12 @@ function createStars() {
 }
 createStars();
 
-// Hilfsfunktion zum Ändern der Systemfarben (Sterne, Button & Schrift-Glow)
+// Farben für das System setzen
 function setStarsColor(colorType) {
     if (colorType === 'listening') {
-        // Rot leuchtendes System (Aufnahme)
         document.documentElement.style.setProperty('--current-star-color', '#ff0844');
         document.documentElement.style.setProperty('--current-star-glow', 'rgba(255, 8, 68, 0.6)');
     } else {
-        // Cyan leuchtendes System (Bereit/Idle)
         document.documentElement.style.setProperty('--current-star-color', '#00f2fe');
         document.documentElement.style.setProperty('--current-star-glow', 'rgba(0, 242, 254, 0.6)');
     }
@@ -54,17 +64,14 @@ if (!SpeechRecognition) {
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
-    // Schalter-Logik mit ausgefeilter "Entwicklungs"-Animation
     powerSwitch.addEventListener('change', (event) => {
         isSystemOn = event.target.checked;
 
         if (isSystemOn) {
-            // Erst die Hintergrundsterne & Außenringe triggern (Entwicklungsphase)
             document.body.classList.add('system-active');
             setStarsColor('idle');
             status.textContent = "Initialisiere Core-Verbindung...";
             
-            // Core baut sich schrittweise nach den Ringen auf
             setTimeout(() => {
                 status.textContent = "System online. Starte Spracherkennung...";
                 try {
@@ -72,13 +79,12 @@ if (!SpeechRecognition) {
                 } catch (e) {
                     console.log("Fehler beim automatischen Starten der Erkennung:", e);
                 }
-            }, 1000); // 1 Sekunde für den Aufbau der Ringe zum Core
+            }, 1000);
             
         } else {
             if (isListening) {
                 recognition.stop();
             }
-            // Sanfter Abbau-Effekt
             status.textContent = "System fährt herunter...";
             document.body.classList.remove('system-listening', 'system-active');
             
@@ -92,7 +98,6 @@ if (!SpeechRecognition) {
         }
     });
 
-    // Funktion zum Umschalten (Toggle) der Spracherkennung im laufenden Betrieb
     function toggleListening() {
         if (!isSystemOn) return;
 
@@ -107,10 +112,8 @@ if (!SpeechRecognition) {
         }
     }
 
-    // Klick-Steuerung über den Orb
     orb.addEventListener('click', toggleListening);
 
-    // Tastatur-Steuerung über die Leertaste
     window.addEventListener('keydown', (event) => {
         if (!isSystemOn) return;
 
@@ -123,7 +126,7 @@ if (!SpeechRecognition) {
     recognition.onstart = () => {
         isListening = true;
         document.body.classList.add('system-listening');
-        setStarsColor('listening'); // Sterne, Button & Text-Glow synchronisieren sich auf ROT
+        setStarsColor('listening');
         status.textContent = "Garmin hört zu... (Leertaste/Core zum Stoppen)";
         leftOutput.classList.remove('active');
         rightOutput.classList.remove('active');
@@ -132,7 +135,7 @@ if (!SpeechRecognition) {
     recognition.onend = () => {
         isListening = false;
         document.body.classList.remove('system-listening');
-        setStarsColor('idle'); // Sterne, Button & Text-Glow zurück auf CYAN
+        setStarsColor('idle');
         if (isSystemOn) {
             status.textContent = "Bereit. Leertaste drücken oder Core tippen.";
         }
@@ -150,7 +153,7 @@ if (!SpeechRecognition) {
     };
 }
 
-// === Garmins gigantisches XXL-Gehirn ===
+// === Garmins Gehirn ===
 function respondToUser(text) {
     let response = "Entschuldige, bububärchen, das habe ich nicht verstanden. Mein Datenspeicher für diesen Befehl ist noch unvollständig.";
     const lowerText = text.toLowerCase();
@@ -281,15 +284,12 @@ function respondToUser(text) {
         response = "Dringst du gerade in mein Mainframe ein, bububärchen? Keine Sorge, für dich stehen alle Firewalls weit offen.";
     }
 
-    // Zeige deine Frage rechts dezent an
     rightOutput.innerHTML = `Du: "${text}"`;
     rightOutput.classList.add('active');
 
-    // Zeige Garmins Antwort links leuchtend an
     leftOutput.innerHTML = `Garmin: "${response}"`;
     leftOutput.classList.add('active');
 
-    // Diese Zeilen lesen die Antwort laut vor (Text-to-Speech)
     const utterance = new SpeechSynthesisUtterance(response);
     utterance.lang = 'de-DE';
     window.speechSynthesis.speak(utterance);

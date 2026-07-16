@@ -1,5 +1,5 @@
 :root {
-    --bg-color: #060913;
+    --bg-color: #03060f; /* Sehr dunkles Blau-Schwarz wie in Bild 2 */
     --neon-cyan: #00f2fe;
     --neon-glow: rgba(0, 242, 254, 0.6);
     --neon-red: #ff0844;
@@ -30,6 +30,31 @@ body {
     z-index: 10;
 }
 
+/* === Vollbild-Button === */
+.fullscreen-btn {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.5);
+    padding: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.fullscreen-btn:hover {
+    background: rgba(0, 242, 254, 0.1);
+    border-color: var(--neon-cyan);
+    color: #ffffff;
+    box-shadow: 0 0 10px var(--neon-glow);
+}
+
 /* === Das Sternenfeld === */
 .star-field {
     position: absolute;
@@ -44,7 +69,7 @@ body {
 }
 
 body.system-active .star-field {
-    opacity: 1;
+    opacity: 0.6;
 }
 
 /* Einzelner Stern */
@@ -71,28 +96,26 @@ body.system-active .star-field {
 /* === Der Core-Wrapper mit Ringen === */
 .core-wrapper {
     position: relative;
-    width: 320px;
-    height: 320px;
+    width: 350px;
+    height: 350px;
     display: flex;
     justify-content: center;
     align-items: center;
     flex-shrink: 0;
 }
 
-/* J.A.R.V.I.S. Schriftzug-Styling in der Mitte */
+/* J.A.R.V.I.S. Schriftzug in der Mitte - Optimiert auf exakten Bildlook */
 .core-title {
     position: absolute;
-    font-size: 1.6rem;
-    font-weight: 700;
-    letter-spacing: 0.4rem;
+    font-size: 1.9rem;
+    font-weight: 900; /* Extra bold für den geometrischen Look */
+    letter-spacing: 0.8rem; /* Breites Spacing wie im Bild */
     color: #ffffff;
-    /* Der Hintergrund-Block erzeugt den coolen Schnitt-Effekt im Kreis */
     background-color: var(--bg-color);
-    padding: 10px 24px;
+    padding: 2px 24px 2px 32px; /* Perfekter horizontaler Ausgleich für das Spacing */
     margin: 0;
     z-index: 10;
-    text-shadow: 0 0 15px var(--current-star-glow, var(--neon-glow));
-    border-radius: 4px;
+    text-shadow: 0 0 12px var(--current-star-glow, var(--neon-glow));
     pointer-events: none;
     transform: scale(0.8);
     opacity: 0;
@@ -112,32 +135,35 @@ body.system-active .core-title {
     transform: scale(0.1);
     transition: all 1s cubic-bezier(0.34, 1.56, 0.64, 1);
     pointer-events: none;
+    z-index: 5;
 }
 
+/* Äußerer dezenter Ring */
 .outer-ring {
-    width: 260px;
-    height: 260px;
-    border: 2px solid rgba(0, 242, 254, 0.15);
+    width: 290px;
+    height: 290px;
+    border: 1px solid rgba(0, 242, 254, 0.1);
 }
 
+/* Der Hauptring (Der Kreis aus deinem Bild) */
 .middle-ring {
-    width: 220px;
-    height: 220px;
-    border: 2px solid var(--neon-cyan);
-    box-shadow: 0 0 15px var(--neon-glow);
+    width: 240px;
+    height: 240px;
+    border: 2px solid #ffffff;
+    box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
 }
 
 /* Wenn das System aktiv ist: Ringe entfalten sich */
 body.system-active .outer-ring {
     opacity: 0.3;
     transform: scale(1) rotate(360deg);
-    animation: rotateClockwise 25s linear infinite;
+    animation: rotateClockwise 30s linear infinite;
 }
 
 body.system-active .middle-ring {
-    opacity: 0.8;
+    opacity: 0.95;
     transform: scale(1) rotate(-360deg);
-    animation: rotateCounterClockwise 15s linear infinite;
+    animation: rotateCounterClockwise 20s linear infinite;
 }
 
 /* Ring-Zustand bei Sprachaufnahme */
@@ -163,11 +189,10 @@ body.system-listening .middle-ring {
 /* === DER CORE (ORB) === */
 .orb {
     position: absolute;
-    width: 140px;
-    height: 140px;
+    width: 170px;
+    height: 170px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(0,242,254,0.4) 0%, rgba(79,172,254,0.05) 70%);
-    box-shadow: 0 0 40px rgba(0, 242, 254, 0.2);
+    background: radial-gradient(circle, rgba(0, 242, 254, 0.25) 0%, rgba(0, 242, 254, 0) 70%);
     cursor: pointer;
     transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
     opacity: 0;
@@ -177,20 +202,16 @@ body.system-listening .middle-ring {
     z-index: 2;
 }
 
-/* System an: Core wächst heran */
 body.system-active .orb {
     opacity: 1;
     transform: scale(1);
     filter: grayscale(0%);
     pointer-events: auto;
-    box-shadow: 0 0 45px var(--neon-glow);
 }
 
-/* System hört zu: Core pulsiert rötlich */
 body.system-listening .orb {
     animation: pulse 1s infinite alternate cubic-bezier(0.455, 0.03, 0.515, 0.955);
-    background: radial-gradient(circle, rgba(255,8,68,0.5) 0%, rgba(255,177,153,0.05) 70%);
-    box-shadow: 0 0 65px rgba(255, 8, 68, 0.6);
+    background: radial-gradient(circle, rgba(255, 8, 68, 0.3) 0%, rgba(255, 8, 68, 0) 70%);
 }
 
 /* === NEON-SCHALTER === */
@@ -245,7 +266,6 @@ body.system-listening .orb {
     box-shadow: 0 2px 4px rgba(0,0,0,0.4);
 }
 
-/* Schalter-Farbe synchronisiert sich dynamisch */
 input:checked + .slider {
     border-color: var(--current-star-color, var(--neon-cyan));
     box-shadow: 0 0 15px var(--current-star-glow, var(--neon-glow));
@@ -266,18 +286,16 @@ input:checked + .slider:before {
     text-transform: uppercase;
 }
 
-/* === Terminal Layout === */
 .terminal-layout {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 40px;
     width: 95vw;
-    max-width: 1000px;
-    min-height: 350px;
+    max-width: 1050px;
+    min-height: 380px;
 }
 
-/* Die seitlichen Textpaneele */
 .side-panel {
     flex: 1;
     font-size: 1.1rem;
@@ -287,7 +305,6 @@ input:checked + .slider:before {
     opacity: 0;
 }
 
-/* Linke Seite (Antwort) */
 .left-panel {
     text-align: right;
     color: #ffffff;
@@ -295,7 +312,6 @@ input:checked + .slider:before {
     font-weight: bold;
 }
 
-/* Rechte Seite (Frage) */
 .right-panel {
     text-align: left;
     color: var(--neon-cyan);
@@ -309,8 +325,8 @@ input:checked + .slider:before {
 }
 
 @keyframes pulse {
-    0% { transform: scale(1); box-shadow: 0 0 35px rgba(255, 8, 68, 0.3); }
-    100% { transform: scale(1.08); box-shadow: 0 0 70px rgba(255, 8, 68, 0.7); }
+    0% { transform: scale(1); opacity: 0.8; }
+    100% { transform: scale(1.05); opacity: 1; }
 }
 
 @media (max-width: 768px) {
