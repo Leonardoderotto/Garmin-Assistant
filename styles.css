@@ -1,7 +1,14 @@
+:root {
+    --bg-color: #060913;
+    --neon-cyan: #00f2fe;
+    --neon-glow: rgba(0, 242, 254, 0.6);
+    --dark-blue: #162235;
+}
+
 body {
     margin: 0;
     padding: 0;
-    background-color: #0b0f19;
+    background-color: var(--bg-color);
     color: #ffffff;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     display: flex;
@@ -9,6 +16,7 @@ body {
     align-items: center;
     height: 100vh;
     overflow: hidden;
+    transition: background 0.5s ease;
 }
 
 .container {
@@ -17,28 +25,69 @@ body {
     flex-direction: column;
     align-items: center;
     gap: 2rem;
+    z-index: 10; /* Damit das Interface vor den Sternen liegt */
 }
 
-/* === NEU: Styling für den An-/Aus-Schalter === */
+/* === NEU: Das animierte Sternenfeld === */
+.star-field {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+    opacity: 0; /* Standardmäßig unsichtbar */
+    transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+}
+
+/* Wenn das System aktiv ist, blenden wir die Sterne ein */
+body.system-active .star-field {
+    opacity: 1;
+}
+
+/* Einzelner Stern/Punkt */
+.star {
+    position: absolute;
+    background-color: var(--neon-cyan); /* Synchronisierte Farbe */
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--neon-glow);
+    animation: floatAndPulse 4s infinite ease-in-out alternate;
+}
+
+/* Schwebende Animation für die Sterne */
+@keyframes floatAndPulse {
+    0% {
+        transform: translateY(0px) scale(0.8);
+        opacity: 0.2;
+    }
+    100% {
+        transform: translateY(-20px) scale(1.2);
+        opacity: 0.8;
+    }
+}
+
+/* === COOLERER NEON-SCHALTER === */
 .power-control {
     display: flex;
+    flex-direction: column;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 20px;
+    gap: 8px;
+    margin-bottom: 10px;
 }
 
 .power-label {
-    font-size: 0.8rem;
-    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.7rem;
+    color: rgba(255, 255, 255, 0.4);
     text-transform: uppercase;
-    letter-spacing: 1px;
+    letter-spacing: 2px;
 }
 
 .switch {
     position: relative;
     display: inline-block;
-    width: 50px;
-    height: 24px;
+    width: 64px;
+    height: 32px;
 }
 
 .switch input {
@@ -47,79 +96,86 @@ body {
     height: 0;
 }
 
+/* Das Gehäuse des Schalters */
 .slider {
     position: absolute;
     cursor: pointer;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background-color: #2a3b55;
-    transition: .4s;
-    border-radius: 24px;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-color: #0f172a;
+    border: 2px solid var(--dark-blue);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    border-radius: 32px;
 }
 
-/* Der innere Kreis des Schalters */
+/* Der schwebende Pin im Schalter */
 .slider:before {
     position: absolute;
     content: "";
-    height: 18px;
-    width: 18px;
-    left: 3px;
-    bottom: 3px;
-    background-color: white;
-    transition: .4s;
+    height: 20px;
+    width: 20px;
+    left: 4px;
+    bottom: 4px;
+    background-color: #334155;
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
 }
 
-/* Wenn der Schalter AN ist (Grün) */
+/* Wenn AN: Gehäuse leuchtet auf */
 input:checked + .slider {
-    background-color: #2ecc71;
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 15px var(--neon-glow);
 }
 
-/* Die Bewegung des Kreises beim Einschalten */
+/* Wenn AN: Der Pin glüht und schnippst nach rechts */
 input:checked + .slider:before {
-    transform: translateX(26px);
+    transform: translateX(32px);
+    background-color: #ffffff;
+    box-shadow: 0 0 10px #ffffff, 0 0 20px var(--neon-cyan);
 }
-/* === Ende Schalter-Styling === */
 
-
+/* === RESTELEMENTE === */
 .title {
-    font-size: 1.5rem;
-    letter-spacing: 0.6rem;
+    font-size: 1.6rem;
+    letter-spacing: 0.8rem;
     text-transform: uppercase;
     font-weight: 300;
-    color: rgba(255, 255, 255, 0.7);
+    color: rgba(255, 255, 255, 0.8);
+    text-shadow: 0 0 10px rgba(255,255,255,0.1);
 }
 
 .orb {
-    width: 130px;
-    height: 130px;
+    width: 140px;
+    height: 140px;
     border-radius: 50%;
     background: radial-gradient(circle, #00f2fe 0%, #4facfe 100%);
-    box-shadow: 0 0 35px rgba(0, 242, 254, 0.5);
+    box-shadow: 0 0 35px rgba(0, 242, 254, 0.3);
     cursor: pointer;
-    transition: all 0.5s ease;
-    opacity: 0.3; /* Ausgegraut, wenn System aus ist */
-    pointer-events: none; /* Nicht klickbar, wenn aus */
+    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    opacity: 0.1;
+    filter: grayscale(100%);
+    pointer-events: none;
 }
 
-/* Orb wird aktiv, wenn das System eingeschaltet ist */
 .orb.active {
     opacity: 1;
+    filter: grayscale(0%);
     pointer-events: auto;
+    box-shadow: 0 0 40px var(--neon-glow);
 }
 
 .orb.listening {
-    animation: pulse 1.2s infinite alternate;
+    animation: pulse 1s infinite alternate cubic-bezier(0.455, 0.03, 0.515, 0.955);
     background: radial-gradient(circle, #ff0844 0%, #ffb199 100%);
-    box-shadow: 0 0 50px rgba(255, 8, 68, 0.8);
+    box-shadow: 0 0 60px rgba(255, 8, 68, 0.8);
 }
 
 .status {
-    font-size: 0.9rem;
-    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.4);
     font-weight: 300;
+    letter-spacing: 1px;
+    text-transform: uppercase;
 }
 
 .output {
@@ -127,17 +183,12 @@ input:checked + .slider:before {
     max-width: 300px;
     line-height: 1.5;
     min-height: 50px;
-    color: #00f2fe;
+    color: var(--neon-cyan);
     font-style: italic;
+    text-shadow: 0 0 8px rgba(0, 242, 254, 0.4);
 }
 
 @keyframes pulse {
-    0% {
-        transform: scale(1);
-        box-shadow: 0 0 25px rgba(255, 8, 68, 0.5);
-    }
-    100% {
-        transform: scale(1.15);
-        box-shadow: 0 0 60px rgba(255, 8, 68, 1);
-    }
+    0% { transform: scale(1); box-shadow: 0 0 30px rgba(255, 8, 68, 0.4); }
+    100% { transform: scale(1.1); box-shadow: 0 0 65px rgba(255, 8, 68, 0.9); }
 }
