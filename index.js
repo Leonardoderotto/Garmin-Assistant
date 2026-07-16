@@ -21,7 +21,6 @@ let visualizerAnimationId;
 
 // === WEBAUDIO SOUND-SYNTHESE (Sci-Fi Chirps) ===
 function playSound(type) {
-    // Falls AudioCtx noch nicht initialisiert ist
     if (!audioCtx) {
         audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     }
@@ -52,7 +51,7 @@ function playSound(type) {
         osc.stop(now + 0.8);
 
     } else if (type === 'listening') {
-        // Heller, doppelter J.A.R.V.I.S.-Zuhör-Chirp (Ditt-Dütt!)
+        // Heller, doppelter J.A.R.V.I.S.-Zuhör-Chirp
         osc.type = 'sine';
         osc.frequency.setValueAtTime(880, now);
         osc.frequency.setValueAtTime(1200, now + 0.08);
@@ -93,7 +92,7 @@ async function initVisualizer() {
         const source = audioCtx.createMediaStreamSource(micStream);
         
         analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 64; // Kleine FFT-Größe für feine, dicke Balken im Kreis
+        analyser.fftSize = 64; 
         source.connect(analyser);
         
         drawVisualizer();
@@ -131,7 +130,6 @@ function drawVisualizer() {
         const color = isListening ? '#ff0844' : '#00f2fe';
 
         for (let i = 0; i < barsCount; i++) {
-            // Symmetrischer Soundwellen-Effekt
             const value = dataArray[i % (bufferLength / 2)] / 255.0;
             const barHeight = value * 22; // Maximale Ausschlagshöhe der Welle
 
@@ -145,7 +143,6 @@ function drawVisualizer() {
             const xEnd = centerX + Math.cos(angle) * (radius + barHeight);
             const yEnd = centerY + Math.sin(angle) * (radius + barHeight);
 
-            // Zeichne die feine, leuchtende Soundbarke
             canvasCtx.beginPath();
             canvasCtx.moveTo(xStart, yStart);
             canvasCtx.lineTo(xEnd, yEnd);
@@ -283,7 +280,6 @@ if (!SpeechRecognition) {
         leftOutput.classList.remove('active');
         rightOutput.classList.remove('active');
         
-        // Starte den echten Voice-Visualizer
         initVisualizer();
     };
 
@@ -291,7 +287,7 @@ if (!SpeechRecognition) {
         isListening = false;
         document.body.classList.remove('system-listening');
         setStarsColor('idle');
-        stopVisualizer(); // Visualizer anhalten, wenn Zuhören stoppt
+        stopVisualizer();
         
         if (isSystemOn) {
             status.textContent = "Bereit. Leertaste drücken oder Core tippen.";

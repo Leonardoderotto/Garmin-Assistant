@@ -1,5 +1,5 @@
 :root {
-    --bg-color: #03060f; /* Sehr dunkles Blau-Schwarz wie in Bild 2 */
+    --bg-color: #03060f; /* Sehr dunkles Blau-Schwarz */
     --neon-cyan: #00f2fe;
     --neon-glow: rgba(0, 242, 254, 0.6);
     --neon-red: #ff0844;
@@ -111,8 +111,8 @@ body.system-active .star-field {
     font-weight: 900;
     letter-spacing: 0.8rem;
     color: #ffffff;
-    background-color: var(--bg-color);
-    padding: 2px 24px 2px 32px;
+    background-color: transparent; /* Transparent, damit der Kreis sauber maskiert durchscheint */
+    padding: 0;
     margin: 0;
     z-index: 10;
     text-shadow: 0 0 12px var(--current-star-glow, var(--neon-glow));
@@ -160,18 +160,34 @@ body.system-active .core-title {
     border: 1px solid rgba(0, 242, 254, 0.1);
 }
 
-/* Der Hauptring (Der Kreis aus deinem Bild) */
+/* Der Hauptring (Der Kreis aus deinen Vorlagen) */
 .middle-ring {
     width: 240px;
     height: 240px;
     border: 2px solid #ffffff;
     box-shadow: 0 0 10px rgba(255, 255, 255, 0.2);
+    
+    /* Maske, die den linken und rechten Bereich (wo der Text liegt) sauber ausblendet */
+    mask-image: linear-gradient(
+        to right, 
+        transparent 0%, 
+        #000 15%, 
+        #000 85%, 
+        transparent 100%
+    );
+    -webkit-mask-image: linear-gradient(
+        to right, 
+        transparent 0%, 
+        #000 15%, 
+        #000 85%, 
+        transparent 100%
+    );
 }
 
 /* Kreisender Radar-Punkt auf dem Hauptring */
 .radar-dot {
     position: absolute;
-    top: -5px; /* Perfekt positioniert auf dem 2px breiten Rand */
+    top: -5px; /* Perfekt positioniert auf dem Rand */
     left: calc(50% - 5px);
     width: 10px;
     height: 10px;
@@ -268,7 +284,6 @@ body.system-active:not(.system-listening) .orb {
 }
 
 body.system-listening .orb {
-    /* Kein CSS-Pulsieren mehr nötig, da der echte Visualizer auf die Stimme reagiert! */
     background: radial-gradient(circle, rgba(255, 8, 68, 0.2) 0%, rgba(255, 8, 68, 0) 70%);
 }
 
