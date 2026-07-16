@@ -41,7 +41,7 @@ if (!SpeechRecognition) {
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
-    // === GEÄNDERT: Schalter-Logik startet jetzt sofort die Spracherkennung ===
+    // Schalter-Logik startet sofort die Spracherkennung
     powerSwitch.addEventListener('change', (event) => {
         isSystemOn = event.target.checked;
 
@@ -50,14 +50,13 @@ if (!SpeechRecognition) {
             orb.classList.add('active');
             status.textContent = "System startet...";
             
-            // NEU: Sofortige Spracherkennung beim Einschalten triggern
             setTimeout(() => {
                 try {
                     recognition.start();
                 } catch (e) {
                     console.log("Fehler beim automatischen Starten der Erkennung:", e);
                 }
-            }, 300); // Eine winzige Verzögerung, damit die Einschalt-Animation flüssig durchläuft
+            }, 300);
             
         } else {
             if (isListening) {
@@ -126,18 +125,39 @@ if (!SpeechRecognition) {
     };
 }
 
+// === Garmins Gehirn (Hier antwortet er dir!) ===
 function respondToUser(text) {
+    // Die Standard-Antwort, wenn er das Gesagte nicht versteht
     let response = "Entschuldige, bububärchen, das habe ich nicht verstanden.";
     const lowerText = text.toLowerCase();
 
     if (lowerText.includes('hallo') || lowerText.includes('hi')) {
         response = "Hallo bububärchen! Core-Systeme laufen stabil.";
+        
     } else if (lowerText.includes('wie geht') || lowerText.includes('wie läuft')) {
         response = "Alle Systeme arbeiten im optimalen Bereich, bububärchen. Danke der Nachfrage.";
+        
     } else if (lowerText.includes('wer bist du') || lowerText.includes('dein name')) {
         response = "Ich bin Garmin, die künstliche Intelligenz dieses Terminals.";
+        
+    } 
+    // === HIER IST DEINE NEUE FRAGE! ===
+    else if (lowerText.includes('lieblingsfarbe') || lowerText.includes('welche farbe')) {
+        response = "Meine Lieblingsfarbe ist natürlich Neon-Cyan, genau wie meine Sterne im Hintergrund, bububärchen!";
     }
+    
+    else if (lowerText.includes('Wer ist der Beste') || lowerText.includes('der beste')) {
+    response = "Natürlich bist du der Beste, bububärchen!";
+    }
+    
+    /* Du kannst das Prinzip beliebig oft wiederholen! Kopiere einfach das hier für weitere Fragen:
+    
+    else if (lowerText.includes('dein_suchbegriff')) {
+        response = "Deine Antwort, die Garmin sprechen soll.";
+    }
+    */
 
+    // Diese Zeilen lesen die Antwort laut vor (Text-to-Speech)
     const utterance = new SpeechSynthesisUtterance(response);
     utterance.lang = 'de-DE';
     window.speechSynthesis.speak(utterance);
