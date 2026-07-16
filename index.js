@@ -126,6 +126,7 @@ if (!SpeechRecognition) {
 }
 
 // === Garmins Gehirn (Hier antwortet er dir!) ===
+// === Garmins Gehirn (Hier antwortet er dir!) ===
 function respondToUser(text) {
     // Die Standard-Antwort, wenn er das Gesagte nicht versteht
     let response = "Entschuldige, bububärchen, das habe ich nicht verstanden.";
@@ -140,16 +141,24 @@ function respondToUser(text) {
     } else if (lowerText.includes('wer bist du') || lowerText.includes('dein name')) {
         response = "Ich bin Garmin, die künstliche Intelligenz dieses Terminals.";
         
-    } 
-    // === HIER IST DEINE NEUE FRAGE! ===
-    else if (lowerText.includes('lieblingsfarbe') || lowerText.includes('welche farbe')) {
+    } else if (lowerText.includes('lieblingsfarbe') || lowerText.includes('welche farbe')) {
         response = "Meine Lieblingsfarbe ist natürlich Neon-Cyan, genau wie meine Sterne im Hintergrund, bububärchen!";
     }
 
-    else if (lowerText.includes('wer ist der beste') || lowerText.includes('der beste')) {
-    response = "Natürlich bist du der Beste, bububärchen!";
-    }
-    
+    // === NEU: Zeige die Antwort auf dem Bildschirm an! ===
+    // Wir zeigen deine Frage leicht ausgegraut an und Garmins Antwort direkt darunter in hellem Weiß/Neon
+    output.innerHTML = `
+        <span style="opacity: 0.5; font-size: 0.9rem;">Du: "${text}"</span><br>
+        <span style="color: #ffffff; text-shadow: 0 0 10px var(--neon-glow); font-weight: bold; font-style: normal; display: block; margin-top: 5px;">
+            Garmin: "${response}"
+        </span>
+    `;
+
+    // Diese Zeilen lesen die Antwort laut vor (Text-to-Speech)
+    const utterance = new SpeechSynthesisUtterance(response);
+    utterance.lang = 'de-DE';
+    window.speechSynthesis.speak(utterance);
+}
     /* Du kannst das Prinzip beliebig oft wiederholen! Kopiere einfach das hier für weitere Fragen:
     
     else if (lowerText.includes('dein_suchbegriff')) {
