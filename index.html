@@ -4,14 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Garmin Assistant</title>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <!-- Sternenfeld im Hintergrund -->
     <div id="star-field" class="star-field"></div>
 
     <div class="container">
-        <!-- Der optimierte An-/Aus-Bereich -->
         <div class="power-control">
             <span class="power-label">Core System</span>
             <label class="switch">
@@ -19,22 +18,17 @@
                 <span class="slider"></span>
             </label>
         </div>
-
-        <h1 class="title">GARMIN</h1>
         
-        <!-- Das visuelle Core-System mit seitlichen Textfeldern -->
         <div class="terminal-layout">
-            <!-- Linke Seite: Garmins Antwort -->
             <div class="side-panel left-panel" id="leftOutput"></div>
 
-            <!-- Mitte: Der Core -->
             <div class="core-wrapper">
                 <div class="core-ring outer-ring" id="outerRing"></div>
                 <div class="core-ring middle-ring" id="middleRing"></div>
                 <div class="orb" id="orb"></div>
+                <h1 class="core-title" id="coreTitle">G.A.R.M.I.N</h1>
             </div>
 
-            <!-- Rechte Seite: Deine Frage -->
             <div class="side-panel right-panel" id="rightOutput"></div>
         </div>
 

@@ -12,7 +12,7 @@ body {
     padding: 0;
     background-color: var(--bg-color);
     color: #ffffff;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: 'Orbitron', -apple-system, BlinkMacSystemFont, sans-serif;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -51,7 +51,6 @@ body.system-active .star-field {
 .star {
     position: absolute;
     border-radius: 50%;
-    /* Standardfarbe Cyan, wechselt via CSS-Variable, die wir im JS steuern */
     background-color: var(--current-star-color, var(--neon-cyan));
     box-shadow: 0 0 8px var(--current-star-glow, var(--neon-glow));
     animation: floatAndPulse 4s infinite ease-in-out alternate;
@@ -72,19 +71,43 @@ body.system-active .star-field {
 /* === Der Core-Wrapper mit Ringen === */
 .core-wrapper {
     position: relative;
-    width: 220px;
-    height: 220px;
+    width: 320px;
+    height: 320px;
     display: flex;
     justify-content: center;
     align-items: center;
     flex-shrink: 0;
 }
 
+/* J.A.R.V.I.S. Schriftzug-Styling in der Mitte */
+.core-title {
+    position: absolute;
+    font-size: 1.6rem;
+    font-weight: 700;
+    letter-spacing: 0.4rem;
+    color: #ffffff;
+    /* Der Hintergrund-Block erzeugt den coolen Schnitt-Effekt im Kreis */
+    background-color: var(--bg-color);
+    padding: 10px 24px;
+    margin: 0;
+    z-index: 10;
+    text-shadow: 0 0 15px var(--current-star-glow, var(--neon-glow));
+    border-radius: 4px;
+    pointer-events: none;
+    transform: scale(0.8);
+    opacity: 0;
+    transition: all 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+body.system-active .core-title {
+    opacity: 1;
+    transform: scale(1);
+}
+
 /* Die Ringe, die sich zum Core entwickeln */
 .core-ring {
     position: absolute;
     border-radius: 50%;
-    border: 2px dashed var(--neon-cyan);
     opacity: 0;
     transform: scale(0.1);
     transition: all 1s cubic-bezier(0.34, 1.56, 0.64, 1);
@@ -92,42 +115,39 @@ body.system-active .star-field {
 }
 
 .outer-ring {
-    width: 200px;
-    height: 200px;
-    border-color: rgba(0, 242, 254, 0.2);
-    border-style: solid;
-    border-width: 1px;
+    width: 260px;
+    height: 260px;
+    border: 2px solid rgba(0, 242, 254, 0.15);
 }
 
 .middle-ring {
-    width: 170px;
-    height: 170px;
-    border-color: var(--neon-cyan);
-    border-width: 2px;
-    box-shadow: 0 0 10px var(--neon-glow);
+    width: 220px;
+    height: 220px;
+    border: 2px solid var(--neon-cyan);
+    box-shadow: 0 0 15px var(--neon-glow);
 }
 
 /* Wenn das System aktiv ist: Ringe entfalten sich */
 body.system-active .outer-ring {
-    opacity: 0.4;
+    opacity: 0.3;
     transform: scale(1) rotate(360deg);
-    animation: rotateClockwise 20s linear infinite;
+    animation: rotateClockwise 25s linear infinite;
 }
 
 body.system-active .middle-ring {
-    opacity: 0.7;
+    opacity: 0.8;
     transform: scale(1) rotate(-360deg);
-    animation: rotateCounterClockwise 12s linear infinite;
+    animation: rotateCounterClockwise 15s linear infinite;
 }
 
 /* Ring-Zustand bei Sprachaufnahme */
 body.system-listening .outer-ring {
-    border-color: rgba(255, 8, 68, 0.2);
+    border-color: rgba(255, 8, 68, 0.15);
 }
 
 body.system-listening .middle-ring {
     border-color: var(--neon-red);
-    box-shadow: 0 0 15px var(--neon-red-glow);
+    box-shadow: 0 0 20px var(--neon-red-glow);
 }
 
 @keyframes rotateClockwise {
@@ -143,15 +163,15 @@ body.system-listening .middle-ring {
 /* === DER CORE (ORB) === */
 .orb {
     position: absolute;
-    width: 110px;
-    height: 110px;
+    width: 140px;
+    height: 140px;
     border-radius: 50%;
-    background: radial-gradient(circle, #00f2fe 0%, #4facfe 100%);
-    box-shadow: 0 0 35px rgba(0, 242, 254, 0.3);
+    background: radial-gradient(circle, rgba(0,242,254,0.4) 0%, rgba(79,172,254,0.05) 70%);
+    box-shadow: 0 0 40px rgba(0, 242, 254, 0.2);
     cursor: pointer;
     transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
     opacity: 0;
-    transform: scale(0.1); /* Startet winzig klein */
+    transform: scale(0.1);
     filter: grayscale(100%);
     pointer-events: none;
     z-index: 2;
@@ -163,17 +183,17 @@ body.system-active .orb {
     transform: scale(1);
     filter: grayscale(0%);
     pointer-events: auto;
-    box-shadow: 0 0 40px var(--neon-glow);
+    box-shadow: 0 0 45px var(--neon-glow);
 }
 
 /* System hört zu: Core pulsiert rötlich */
 body.system-listening .orb {
     animation: pulse 1s infinite alternate cubic-bezier(0.455, 0.03, 0.515, 0.955);
-    background: radial-gradient(circle, #ff0844 0%, #ffb199 100%);
-    box-shadow: 0 0 60px rgba(255, 8, 68, 0.8);
+    background: radial-gradient(circle, rgba(255,8,68,0.5) 0%, rgba(255,177,153,0.05) 70%);
+    box-shadow: 0 0 65px rgba(255, 8, 68, 0.6);
 }
 
-/* === COOLERER NEON-SCHALTER === */
+/* === NEON-SCHALTER === */
 .power-control {
     display: flex;
     flex-direction: column;
@@ -202,7 +222,6 @@ body.system-listening .orb {
     height: 0;
 }
 
-/* Das Gehäuse des Schalters */
 .slider {
     position: absolute;
     cursor: pointer;
@@ -213,7 +232,6 @@ body.system-listening .orb {
     border-radius: 32px;
 }
 
-/* Der schwebende Pin im Schalter */
 .slider:before {
     position: absolute;
     content: "";
@@ -227,13 +245,12 @@ body.system-listening .orb {
     box-shadow: 0 2px 4px rgba(0,0,0,0.4);
 }
 
-/* Schalter-Farbe synchronisiert sich jetzt dynamisch! */
+/* Schalter-Farbe synchronisiert sich dynamisch */
 input:checked + .slider {
     border-color: var(--current-star-color, var(--neon-cyan));
     box-shadow: 0 0 15px var(--current-star-glow, var(--neon-glow));
 }
 
-/* Wenn AN: Der Pin glüht in der aktuellen Systemfarbe */
 input:checked + .slider:before {
     transform: translateX(32px);
     background-color: #ffffff;
@@ -241,32 +258,23 @@ input:checked + .slider:before {
 }
 
 /* === RESTELEMENTE === */
-.title {
-    font-size: 1.6rem;
-    letter-spacing: 0.8rem;
-    text-transform: uppercase;
-    font-weight: 300;
-    color: rgba(255, 255, 255, 0.8);
-    text-shadow: 0 0 10px rgba(255,255,255,0.1);
-}
-
 .status {
     font-size: 0.85rem;
     color: rgba(255, 255, 255, 0.4);
     font-weight: 300;
-    letter-spacing: 1px;
+    letter-spacing: 2px;
     text-transform: uppercase;
 }
 
-/* === Terminal Layout für Nebeneinander-Darstellung === */
+/* === Terminal Layout === */
 .terminal-layout {
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 40px;
-    width: 90vw;
-    max-width: 950px;
-    min-height: 250px;
+    width: 95vw;
+    max-width: 1000px;
+    min-height: 350px;
 }
 
 /* Die seitlichen Textpaneele */
@@ -275,11 +283,11 @@ input:checked + .slider:before {
     font-size: 1.1rem;
     line-height: 1.5;
     transition: all 0.5s ease;
-    min-width: 220px;
-    opacity: 0; /* Unsichtbar, wenn leer */
+    min-width: 240px;
+    opacity: 0;
 }
 
-/* Linke Seite (Antwort) richtet sich nach rechts aus, um dem Core nah zu sein */
+/* Linke Seite (Antwort) */
 .left-panel {
     text-align: right;
     color: #ffffff;
@@ -287,7 +295,7 @@ input:checked + .slider:before {
     font-weight: bold;
 }
 
-/* Rechte Seite (Frage) richtet sich nach links aus */
+/* Rechte Seite (Frage) */
 .right-panel {
     text-align: left;
     color: var(--neon-cyan);
@@ -296,21 +304,19 @@ input:checked + .slider:before {
     text-shadow: 0 0 8px rgba(0, 242, 254, 0.4);
 }
 
-/* Wenn Text vorhanden ist, blenden wir die Paneele weich ein */
 .side-panel.active {
     opacity: 1;
 }
 
 @keyframes pulse {
-    0% { transform: scale(1); box-shadow: 0 0 30px rgba(255, 8, 68, 0.4); }
-    100% { transform: scale(1.1); box-shadow: 0 0 65px rgba(255, 8, 68, 0.9); }
+    0% { transform: scale(1); box-shadow: 0 0 35px rgba(255, 8, 68, 0.3); }
+    100% { transform: scale(1.08); box-shadow: 0 0 70px rgba(255, 8, 68, 0.7); }
 }
 
-/* Mobil-Optimierung: Wenn der Bildschirm zu klein ist, untereinander stapeln */
 @media (max-width: 768px) {
     .terminal-layout {
         flex-direction: column-reverse;
-        gap: 20px;
+        gap: 30px;
     }
     .left-panel, .right-panel {
         text-align: center;

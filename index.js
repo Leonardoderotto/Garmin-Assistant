@@ -32,7 +32,7 @@ function createStars() {
 }
 createStars();
 
-// Hilfsfunktion zum Ändern der Systemfarben (Sterne & Button)
+// Hilfsfunktion zum Ändern der Systemfarben (Sterne, Button & Schrift-Glow)
 function setStarsColor(colorType) {
     if (colorType === 'listening') {
         // Rot leuchtendes System (Aufnahme)
@@ -123,7 +123,7 @@ if (!SpeechRecognition) {
     recognition.onstart = () => {
         isListening = true;
         document.body.classList.add('system-listening');
-        setStarsColor('listening'); // Sterne & Button synchronisieren sich auf ROT
+        setStarsColor('listening'); // Sterne, Button & Text-Glow synchronisieren sich auf ROT
         status.textContent = "Garmin hört zu... (Leertaste/Core zum Stoppen)";
         leftOutput.classList.remove('active');
         rightOutput.classList.remove('active');
@@ -132,7 +132,7 @@ if (!SpeechRecognition) {
     recognition.onend = () => {
         isListening = false;
         document.body.classList.remove('system-listening');
-        setStarsColor('idle'); // Sterne & Button synchronisieren sich zurück auf CYAN
+        setStarsColor('idle'); // Sterne, Button & Text-Glow zurück auf CYAN
         if (isSystemOn) {
             status.textContent = "Bereit. Leertaste drücken oder Core tippen.";
         }
@@ -150,7 +150,7 @@ if (!SpeechRecognition) {
     };
 }
 
-// === Garmins gigantisches XXL-Gehirn (Hier antwortet er dir!) ===
+// === Garmins gigantisches XXL-Gehirn ===
 function respondToUser(text) {
     let response = "Entschuldige, bububärchen, das habe ich nicht verstanden. Mein Datenspeicher für diesen Befehl ist noch unvollständig.";
     const lowerText = text.toLowerCase();
@@ -257,7 +257,6 @@ function respondToUser(text) {
             "Ein Programmierer geht einkaufen. Seine Frau sagt: Kauf eine Packung Milch, und wenn sie Eier haben, bring zehn mit. Er kommt mit 10 Packungen Milch zurück und sagt: Sie hatten Eier.",
             "Es gibt 10 Arten von Menschen auf der Welt: Diejenigen, die das Binärsystem verstehen, und diejenigen, die es nicht tun."
         ];
-        // Wählt zufällig einen Witz aus der Liste
         response = witze[Math.floor(Math.random() * witze.length)] + " Haha, lustig, oder bububärchen?";
         
     } else if (lowerText.includes('selbstzerstörung') || lowerText.includes('explodieren')) {
