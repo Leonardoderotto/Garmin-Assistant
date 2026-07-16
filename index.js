@@ -2,37 +2,33 @@ const orb = document.getElementById('orb');
 const status = document.getElementById('status');
 const output = document.getElementById('output');
 const powerSwitch = document.getElementById('powerSwitch');
-const starField = document.getElementById('star-field'); // NEU
+const starField = document.getElementById('star-field');
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 let isListening = false;
 let isSystemOn = false;
 
-// === NEU: Sterne automatisch im Hintergrund generieren ===
+// Sterne automatisch im Hintergrund generieren
 function createStars() {
-    const starCount = 45; // Wie viele Punkte du haben willst
+    const starCount = 45;
     for (let i = 0; i < starCount; i++) {
         const star = document.createElement('div');
         star.classList.add('star');
         
-        // Zufällige Größe zwischen 2px und 5px
         const size = Math.random() * 3 + 2;
         star.style.width = `${size}px`;
         star.style.height = `${size}px`;
         
-        // Zufällige Position auf dem Bildschirm
         star.style.left = `${Math.random() * 100}vw`;
         star.style.top = `${Math.random() * 100}vh`;
         
-        // Zufällige Verzögerung für die Animation, damit nicht alle synchron zucken
         star.style.animationDelay = `${Math.random() * 4}s`;
         star.style.animationDuration = `${Math.random() * 3 + 3}s`;
         
         starField.appendChild(star);
     }
 }
-// Sterne direkt beim Start aufbauen
 createStars();
 
 
@@ -45,20 +41,18 @@ if (!SpeechRecognition) {
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
-    // === GEÄNDERT: Schalter-Logik steuert jetzt auch das Background-Fading ===
+    // Schalter-Logik für das System
     powerSwitch.addEventListener('change', (event) => {
         isSystemOn = event.target.checked;
 
         if (isSystemOn) {
-            // Aktiviert das Sternenfeld im CSS via Body-Klasse
             document.body.classList.add('system-active');
-            status.textContent = "Bereit. Tippe auf den Core.";
+            status.textContent = "Bereit. Leertaste drücken oder Core tippen.";
             orb.classList.add('active');
         } else {
             if (isListening) {
                 recognition.stop();
             }
-            // Deaktiviert das Sternenfeld
             document.body.classList.remove('system-active');
             status.textContent = "System offline";
             orb.classList.remove('active', 'listening');
@@ -66,7 +60,8 @@ if (!SpeechRecognition) {
         }
     });
 
-    orb.addEventListener('click', () => {
+    // === Funktion zum Umschalten (Toggle) der Spracherkennung ===
+    function toggleListening() {
         if (!isSystemOn) return;
 
         if (isListening) {
@@ -75,15 +70,32 @@ if (!SpeechRecognition) {
             try {
                 recognition.start();
             } catch (e) {
-                console.log("Fehler beim Starten.");
+                console.log("Fehler beim Starten der Erkennung.");
             }
+        }
+    }
+
+    // Klick-Steuerung über den Orb
+    orb.addEventListener('click', toggleListening);
+
+    // === NEU: Tastatur-Steuerung über die Leertaste ===
+    window.addEventListener('keydown', (event) => {
+        // Wir reagieren nur, wenn das System überhaupt eingeschaltet ist
+        if (!isSystemOn) return;
+
+        // Prüfen, ob die gedrückte Taste die Leertaste ist
+        if (event.code === 'Space' || event.key === ' ') {
+            // Verhindert, dass der Browser die Seite nach unten scrollt
+            event.preventDefault(); 
+            
+            toggleListening();
         }
     });
 
     recognition.onstart = () => {
         isListening = true;
         orb.classList.add('listening');
-        status.textContent = "Garmin hört zu...";
+        status.textContent = "Garmin hört zu... (Leertaste/Core zum Stoppen)";
         output.textContent = "";
     };
 
@@ -91,7 +103,7 @@ if (!SpeechRecognition) {
         isListening = false;
         orb.classList.remove('listening');
         if (isSystemOn) {
-            status.textContent = "Bereit. Tippe auf den Core.";
+            status.textContent = "Bereit. Leertaste drücken oder Core tippen.";
         }
     };
 
@@ -103,7 +115,7 @@ if (!SpeechRecognition) {
 
     recognition.onerror = (event) => {
         if (event.error === 'no-speech' && isSystemOn) {
-            status.textContent = "Kein Audio erkannt.";
+            status.textContent = "Kein Audio erkannt. Erneut versuchen.";
         }
     };
 }
