@@ -25,9 +25,7 @@ let analyser;
 let micStream;
 let visualizerAnimationId;
 
-// API-Key Management
-// API-Key Management
-// API-Key Management
+// API-Key Management (Sicher aus dem LocalStorage!)
 let apiKey = localStorage.getItem('garmin_openai_apikey') || '';
 if (apiKey) apiKeyInput.value = apiKey;
 
@@ -37,7 +35,6 @@ settingsBtn.addEventListener('click', () => {
 });
 
 // API-Key speichern
-saveApiKeyBtn.addEventListener('saveApiKeyBtn', () => {}); // Fallback-Event
 saveApiKeyBtn.onclick = () => {
     apiKey = apiKeyInput.value.trim();
     localStorage.setItem('garmin_openai_apikey', apiKey);
@@ -226,7 +223,7 @@ if (!SpeechRecognition) {
                 try {
                     recognition.start();
                 } catch (e) {
-                    console.log("Fehler beim automatischen Starten der Erkennung:", e);
+                    console.log("Fehler beim automatischen Starten:", e);
                 }
             }, 1000);
             
@@ -323,7 +320,7 @@ async function respondToUser(text) {
                     'Authorization': `Bearer ${apiKey}`
                 },
                 body: JSON.stringify({
-                    model: "gpt-4o-mini", // Kosteneffizient und ultraschnell
+                    model: "gpt-4o-mini",
                     messages: [
                         {
                             role: "system",
@@ -361,13 +358,29 @@ async function respondToUser(text) {
     leftOutput.innerHTML = `Garmin: "${response}"`;
     leftOutput.classList.add('active');
 
-    // Sprachausgabe starten
+    // === HIER STARTET DIE SPRACHAUSGABE ===
+    window.speechSynthesis.cancel(); // Laufende Sätze stoppen
+    
     const utterance = new SpeechSynthesisUtterance(response);
     utterance.lang = 'de-DE';
+    utterance.pitch = 1.1; // Etwas höher und freundlicher
+    utterance.rate = 1.0;  // Normale Sprechgeschwindigkeit
+
+    // Suche nach einer schönen deutschen Stimme
+    const voices = window.speechSynthesis.getVoices();
+    const germanVoice = voices.find(voice => voice.lang.startsWith('de'));
+    if (germanVoice) {
+        utterance.voice = germanVoice;
+    }
+
+    // Fehler-Logging für die Konsole, falls es hakt
+    utterance.onerror = (e) => console.error("Fehler bei der Sprachausgabe:", e);
+
+    // Abspielen!
     window.speechSynthesis.speak(utterance);
 }
 
-// DAS ALTBEWÄHRTE OFFLINE-GEHIRN (Wird genutzt, wenn kein API-Key da ist)
+// DAS ALTBEWÄHRTE OFFLINE-GEHIRN
 function getOfflineResponse(text) {
     let response = "Entschuldige, bububärchen, das habe ich nicht verstanden. Ohne API-Key sind meine Offline-Datenbänke leider begrenzt.";
     const lowerText = text.toLowerCase();
