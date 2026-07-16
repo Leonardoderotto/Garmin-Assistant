@@ -31,6 +31,18 @@ function createStars() {
 }
 createStars();
 
+// Hilfsfunktion zum Ändern der Sternenfarbe
+function setStarsColor(colorType) {
+    if (colorType === 'listening') {
+        // Rot leuchtende Sterne
+        document.documentElement.style.setProperty('--current-star-color', '#ff0844');
+        document.documentElement.style.setProperty('--current-star-glow', 'rgba(255, 8, 68, 0.6)');
+    } else {
+        // Cyan leuchtende Sterne (Standard)
+        document.documentElement.style.setProperty('--current-star-color', '#00f2fe');
+        document.documentElement.style.setProperty('--current-star-glow', 'rgba(0, 242, 254, 0.6)');
+    }
+}
 
 if (!SpeechRecognition) {
     status.textContent = "Spracherkennung wird nicht unterstützt.";
@@ -41,31 +53,38 @@ if (!SpeechRecognition) {
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
-    // Schalter-Logik startet sofort die Spracherkennung
+    // Schalter-Logik mit ausgefeilter "Entwicklungs"-Animation
     powerSwitch.addEventListener('change', (event) => {
         isSystemOn = event.target.checked;
 
         if (isSystemOn) {
+            // Erst die Hintergrundsterne & Außenringe triggern (Entwicklungsphase)
             document.body.classList.add('system-active');
-            orb.classList.add('active');
-            status.textContent = "System startet...";
+            setStarsColor('idle');
+            status.textContent = "Initialisiere Core-Verbindung...";
             
+            // Core baut sich schrittweise nach den Ringen auf
             setTimeout(() => {
+                status.textContent = "System online. Starte Spracherkennung...";
                 try {
                     recognition.start();
                 } catch (e) {
                     console.log("Fehler beim automatischen Starten der Erkennung:", e);
                 }
-            }, 300);
+            }, 1000); // 1 Sekunde für den Aufbau der Ringe zum Core
             
         } else {
             if (isListening) {
                 recognition.stop();
             }
-            document.body.classList.remove('system-active');
-            status.textContent = "System offline";
-            orb.classList.remove('active', 'listening');
-            output.textContent = "";
+            // Sanfter Abbau-Effekt
+            status.textContent = "System fährt herunter...";
+            document.body.classList.remove('system-listening', 'system-active');
+            
+            setTimeout(() => {
+                status.textContent = "System offline";
+                output.textContent = "";
+            }, 800);
         }
     });
 
@@ -99,14 +118,16 @@ if (!SpeechRecognition) {
 
     recognition.onstart = () => {
         isListening = true;
-        orb.classList.add('listening');
+        document.body.classList.add('system-listening');
+        setStarsColor('listening'); // Sterne synchronisieren sich auf ROT
         status.textContent = "Garmin hört zu... (Leertaste/Core zum Stoppen)";
         output.textContent = "";
     };
 
     recognition.onend = () => {
         isListening = false;
-        orb.classList.remove('listening');
+        document.body.classList.remove('system-listening');
+        setStarsColor('idle'); // Sterne synchronisieren sich zurück auf CYAN
         if (isSystemOn) {
             status.textContent = "Bereit. Leertaste drücken oder Core tippen.";
         }
@@ -114,7 +135,6 @@ if (!SpeechRecognition) {
 
     recognition.onresult = (event) => {
         const speechToText = event.results[0][0].transcript;
-        output.textContent = `"${speechToText}"`;
         respondToUser(speechToText);
     };
 
@@ -126,27 +146,21 @@ if (!SpeechRecognition) {
 }
 
 // === Garmins Gehirn (Hier antwortet er dir!) ===
-// === Garmins Gehirn (Hier antwortet er dir!) ===
 function respondToUser(text) {
-    // Die Standard-Antwort, wenn er das Gesagte nicht versteht
     let response = "Entschuldige, bububärchen, das habe ich nicht verstanden.";
     const lowerText = text.toLowerCase();
 
     if (lowerText.includes('hallo') || lowerText.includes('hi')) {
         response = "Hallo bububärchen! Core-Systeme laufen stabil.";
-        
     } else if (lowerText.includes('wie geht') || lowerText.includes('wie läuft')) {
         response = "Alle Systeme arbeiten im optimalen Bereich, bububärchen. Danke der Nachfrage.";
-        
     } else if (lowerText.includes('wer bist du') || lowerText.includes('dein name')) {
         response = "Ich bin Garmin, die künstliche Intelligenz dieses Terminals.";
-        
     } else if (lowerText.includes('lieblingsfarbe') || lowerText.includes('welche farbe')) {
         response = "Meine Lieblingsfarbe ist natürlich Neon-Cyan, genau wie meine Sterne im Hintergrund, bububärchen!";
     }
 
-    // === NEU: Zeige die Antwort auf dem Bildschirm an! ===
-    // Wir zeigen deine Frage leicht ausgegraut an und Garmins Antwort direkt darunter in hellem Weiß/Neon
+    // Zeige die Antwort auf dem Bildschirm an!
     output.innerHTML = `
         <span style="opacity: 0.5; font-size: 0.9rem;">Du: "${text}"</span><br>
         <span style="color: #ffffff; text-shadow: 0 0 10px var(--neon-glow); font-weight: bold; font-style: normal; display: block; margin-top: 5px;">
@@ -159,14 +173,3 @@ function respondToUser(text) {
     utterance.lang = 'de-DE';
     window.speechSynthesis.speak(utterance);
 }
-    /* Du kannst das Prinzip beliebig oft wiederholen! Kopiere einfach das hier für weitere Fragen:
-    
-    else if (lowerText.includes('dein_suchbegriff')) {
-        response = "Deine Antwort, die Garmin sprechen soll.";
-    }
-    */
-
-    // Diese Zeilen lesen die Antwort laut vor (Text-to-Speech)
-    const utterance = new SpeechSynthesisUtterance(response);
-    utterance.lang = 'de-DE';
-    window.speechSynthesis.speak(utterance);

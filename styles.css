@@ -2,6 +2,8 @@
     --bg-color: #060913;
     --neon-cyan: #00f2fe;
     --neon-glow: rgba(0, 242, 254, 0.6);
+    --neon-red: #ff0844;
+    --neon-red-glow: rgba(255, 8, 68, 0.6);
     --dark-blue: #162235;
 }
 
@@ -25,10 +27,10 @@ body {
     flex-direction: column;
     align-items: center;
     gap: 2rem;
-    z-index: 10; /* Damit das Interface vor den Sternen liegt */
+    z-index: 10;
 }
 
-/* === NEU: Das animierte Sternenfeld === */
+/* === Das Sternenfeld === */
 .star-field {
     position: absolute;
     top: 0;
@@ -36,35 +38,138 @@ body {
     width: 100vw;
     height: 100vh;
     z-index: 1;
-    opacity: 0; /* Standardmäßig unsichtbar */
+    opacity: 0;
     transition: opacity 1.2s cubic-bezier(0.4, 0, 0.2, 1);
     pointer-events: none;
 }
 
-/* Wenn das System aktiv ist, blenden wir die Sterne ein */
 body.system-active .star-field {
     opacity: 1;
 }
 
-/* Einzelner Stern/Punkt */
+/* Einzelner Stern */
 .star {
     position: absolute;
-    background-color: var(--neon-cyan); /* Synchronisierte Farbe */
     border-radius: 50%;
-    box-shadow: 0 0 8px var(--neon-glow);
+    /* Standardfarbe Cyan, wechselt via CSS-Variable, die wir im JS steuern */
+    background-color: var(--current-star-color, var(--neon-cyan));
+    box-shadow: 0 0 8px var(--current-star-glow, var(--neon-glow));
     animation: floatAndPulse 4s infinite ease-in-out alternate;
+    transition: background-color 0.8s ease, box-shadow 0.8s ease;
 }
 
-/* Schwebende Animation für die Sterne */
 @keyframes floatAndPulse {
     0% {
         transform: translateY(0px) scale(0.8);
-        opacity: 0.2;
+        opacity: 0.15;
     }
     100% {
         transform: translateY(-20px) scale(1.2);
-        opacity: 0.8;
+        opacity: 0.7;
     }
+}
+
+/* === Der Core-Wrapper mit Ringen === */
+.core-wrapper {
+    position: relative;
+    width: 220px;
+    height: 220px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* Die Ringe, die sich zum Core entwickeln */
+.core-ring {
+    position: absolute;
+    border-radius: 50%;
+    border: 2px dashed var(--neon-cyan);
+    opacity: 0;
+    transform: scale(0.1);
+    transition: all 1s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+}
+
+.outer-ring {
+    width: 200px;
+    height: 200px;
+    border-color: rgba(0, 242, 254, 0.2);
+    border-style: solid;
+    border-width: 1px;
+}
+
+.middle-ring {
+    width: 170px;
+    height: 170px;
+    border-color: var(--neon-cyan);
+    border-width: 2px;
+    box-shadow: 0 0 10px var(--neon-glow);
+}
+
+/* Wenn das System aktiv ist: Ringe entfalten sich */
+body.system-active .outer-ring {
+    opacity: 0.4;
+    transform: scale(1) rotate(360deg);
+    animation: rotateClockwise 20s linear infinite;
+}
+
+body.system-active .middle-ring {
+    opacity: 0.7;
+    transform: scale(1) rotate(-360deg);
+    animation: rotateCounterClockwise 12s linear infinite;
+}
+
+/* Ring-Zustand bei Sprachaufnahme */
+body.system-listening .outer-ring {
+    border-color: rgba(255, 8, 68, 0.2);
+}
+
+body.system-listening .middle-ring {
+    border-color: var(--neon-red);
+    box-shadow: 0 0 15px var(--neon-red-glow);
+}
+
+@keyframes rotateClockwise {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+@keyframes rotateCounterClockwise {
+    from { transform: rotate(360deg); }
+    to { transform: rotate(0deg); }
+}
+
+/* === DER CORE (ORB) === */
+.orb {
+    position: absolute;
+    width: 110px;
+    height: 110px;
+    border-radius: 50%;
+    background: radial-gradient(circle, #00f2fe 0%, #4facfe 100%);
+    box-shadow: 0 0 35px rgba(0, 242, 254, 0.3);
+    cursor: pointer;
+    transition: all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+    opacity: 0;
+    transform: scale(0.1); /* Startet winzig klein */
+    filter: grayscale(100%);
+    pointer-events: none;
+    z-index: 2;
+}
+
+/* System an: Core wächst heran */
+body.system-active .orb {
+    opacity: 1;
+    transform: scale(1);
+    filter: grayscale(0%);
+    pointer-events: auto;
+    box-shadow: 0 0 40px var(--neon-glow);
+}
+
+/* System hört zu: Core pulsiert rötlich */
+body.system-listening .orb {
+    animation: pulse 1s infinite alternate cubic-bezier(0.455, 0.03, 0.515, 0.955);
+    background: radial-gradient(circle, #ff0844 0%, #ffb199 100%);
+    box-shadow: 0 0 60px rgba(255, 8, 68, 0.8);
 }
 
 /* === COOLERER NEON-SCHALTER === */
@@ -142,32 +247,6 @@ input:checked + .slider:before {
     font-weight: 300;
     color: rgba(255, 255, 255, 0.8);
     text-shadow: 0 0 10px rgba(255,255,255,0.1);
-}
-
-.orb {
-    width: 140px;
-    height: 140px;
-    border-radius: 50%;
-    background: radial-gradient(circle, #00f2fe 0%, #4facfe 100%);
-    box-shadow: 0 0 35px rgba(0, 242, 254, 0.3);
-    cursor: pointer;
-    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    opacity: 0.1;
-    filter: grayscale(100%);
-    pointer-events: none;
-}
-
-.orb.active {
-    opacity: 1;
-    filter: grayscale(0%);
-    pointer-events: auto;
-    box-shadow: 0 0 40px var(--neon-glow);
-}
-
-.orb.listening {
-    animation: pulse 1s infinite alternate cubic-bezier(0.455, 0.03, 0.515, 0.955);
-    background: radial-gradient(circle, #ff0844 0%, #ffb199 100%);
-    box-shadow: 0 0 60px rgba(255, 8, 68, 0.8);
 }
 
 .status {
