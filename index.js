@@ -41,14 +41,24 @@ if (!SpeechRecognition) {
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
 
-    // Schalter-Logik für das System
+    // === GEÄNDERT: Schalter-Logik startet jetzt sofort die Spracherkennung ===
     powerSwitch.addEventListener('change', (event) => {
         isSystemOn = event.target.checked;
 
         if (isSystemOn) {
             document.body.classList.add('system-active');
-            status.textContent = "Bereit. Leertaste drücken oder Core tippen.";
             orb.classList.add('active');
+            status.textContent = "System startet...";
+            
+            // NEU: Sofortige Spracherkennung beim Einschalten triggern
+            setTimeout(() => {
+                try {
+                    recognition.start();
+                } catch (e) {
+                    console.log("Fehler beim automatischen Starten der Erkennung:", e);
+                }
+            }, 300); // Eine winzige Verzögerung, damit die Einschalt-Animation flüssig durchläuft
+            
         } else {
             if (isListening) {
                 recognition.stop();
@@ -60,7 +70,7 @@ if (!SpeechRecognition) {
         }
     });
 
-    // === Funktion zum Umschalten (Toggle) der Spracherkennung ===
+    // Funktion zum Umschalten (Toggle) der Spracherkennung im laufenden Betrieb
     function toggleListening() {
         if (!isSystemOn) return;
 
@@ -78,16 +88,12 @@ if (!SpeechRecognition) {
     // Klick-Steuerung über den Orb
     orb.addEventListener('click', toggleListening);
 
-    // === NEU: Tastatur-Steuerung über die Leertaste ===
+    // Tastatur-Steuerung über die Leertaste
     window.addEventListener('keydown', (event) => {
-        // Wir reagieren nur, wenn das System überhaupt eingeschaltet ist
         if (!isSystemOn) return;
 
-        // Prüfen, ob die gedrückte Taste die Leertaste ist
         if (event.code === 'Space' || event.key === ' ') {
-            // Verhindert, dass der Browser die Seite nach unten scrollt
             event.preventDefault(); 
-            
             toggleListening();
         }
     });
