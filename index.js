@@ -145,8 +145,8 @@ function respondToUser(text) {
     else if (lowerText.includes('lieblingsfarbe') || lowerText.includes('welche farbe')) {
         response = "Meine Lieblingsfarbe ist natürlich Neon-Cyan, genau wie meine Sterne im Hintergrund, bububärchen!";
     }
-    
-    else if (lowerText.includes('Wer ist der Beste') || lowerText.includes('der beste')) {
+
+    else if (lowerText.includes('wer ist der beste') || lowerText.includes('der beste')) {
     response = "Natürlich bist du der Beste, bububärchen!";
     }
     
