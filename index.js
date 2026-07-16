@@ -27,7 +27,8 @@ let visualizerAnimationId;
 
 // API-Key Management
 // API-Key Management
-let apiKey = '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';
+// API-Key Management
+let apiKey = localStorage.getItem('garmin_openai_apikey') || '';
 if (apiKey) apiKeyInput.value = apiKey;
 
 // Dropdown umschalten
