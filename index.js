@@ -1,6 +1,6 @@
 /**
  * G.A.R.M.I.N. Core Engine
- * Sci-Fi Sprachassistent mit synthetischen Soundeffekten und OpenAI TTS
+ * Ein hochentwickelter Sci-Fi Sprachassistent mit Konversationsgedächtnis
  */
 
 // DOM-Elemente
@@ -21,8 +21,9 @@ const closeModalBtn = document.getElementById('closeModalBtn');
 const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
 const apiKeyInput = document.getElementById('apiKeyInput');
 
-// Globale Variablen & Audio-Knoten
+// Audio & Web Speech API Variablen
 let recognition;
+let synth = window.speechSynthesis;
 let isListening = false;
 let audioContext;
 let analyser;
@@ -30,177 +31,10 @@ let dataArray;
 let source;
 let animationFrameId;
 
-// Synthesizer-Knoten für Hintergrund-Hum
-let ambienceOsc;
-let ambienceGain;
-
 // SYSTEM-GEDÄCHTNIS (Speichert den Gesprächsverlauf)
 let conversationHistory = [];
 
-// Overdrive Status-Flag
-let isOverdrive = false;
-
-// ==========================================
-// 1. SYNTHETISCHE SOUND-EFFEKTE (Web Audio)
-// ==========================================
-
-function initAudioContext() {
-    if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioContext.state === 'suspended') {
-        audioContext.resume();
-    }
-}
-
-// Sound: BootUp (Aufsteigende Sci-Fi-Tonfolge)
-function playBootSound() {
-    initAudioContext();
-    const now = audioContext.currentTime;
-    
-    // Erster hoher Signalton
-    const osc1 = audioContext.createOscillator();
-    const gain1 = audioContext.createGain();
-    osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(880, now);
-    osc1.frequency.exponentialRampToValueAtTime(1760, now + 0.4);
-    
-    gain1.gain.setValueAtTime(0.15, now);
-    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
-    
-    osc1.connect(gain1);
-    gain1.connect(audioContext.destination);
-    osc1.start(now);
-    osc1.stop(now + 0.4);
-
-    // Zweiter, tieferer "Saug-Effekt"
-    const osc2 = audioContext.createOscillator();
-    const gain2 = audioContext.createGain();
-    osc2.type = 'sawtooth';
-    osc2.frequency.setValueAtTime(110, now);
-    osc2.frequency.exponentialRampToValueAtTime(440, now + 0.6);
-    
-    gain2.gain.setValueAtTime(0.08, now);
-    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
-    
-    const filter = audioContext.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(300, now);
-    filter.frequency.exponentialRampToValueAtTime(1200, now + 0.6);
-
-    osc2.connect(filter);
-    filter.connect(gain2);
-    gain2.connect(audioContext.destination);
-    
-    osc2.start(now);
-    osc2.stop(now + 0.6);
-}
-
-// Sound: Shutdown (Abfallender Energie-Effekt)
-function playShutdownSound() {
-    if (!audioContext) return;
-    const now = audioContext.currentTime;
-    
-    const osc = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    osc.type = 'sawtooth';
-    osc.frequency.setValueAtTime(330, now);
-    osc.frequency.exponentialRampToValueAtTime(55, now + 0.8);
-    
-    gain.gain.setValueAtTime(0.1, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
-    
-    const filter = audioContext.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(1000, now);
-    filter.frequency.exponentialRampToValueAtTime(100, now + 0.8);
-    
-    osc.connect(filter);
-    filter.connect(gain);
-    gain.connect(audioContext.destination);
-    
-    osc.start(now);
-    osc.stop(now + 0.8);
-}
-
-// Sound: Mikrofon aktivieren (Kurzes kühles Klicken)
-function playClickSound() {
-    initAudioContext();
-    const now = audioContext.currentTime;
-    
-    const osc = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    
-    osc.type = 'triangle';
-    osc.frequency.setValueAtTime(1200, now);
-    osc.frequency.setValueAtTime(1800, now + 0.05);
-    
-    gain.gain.setValueAtTime(0.05, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
-    
-    osc.connect(gain);
-    gain.connect(audioContext.destination);
-    
-    osc.start(now);
-    osc.stop(now + 0.15);
-}
-
-// Sound: Reaktorsound im Hintergrund starten (Pulsierendes Brummen)
-function startAmbience() {
-    initAudioContext();
-    const now = audioContext.currentTime;
-    
-    ambienceOsc = audioContext.createOscillator();
-    ambienceGain = audioContext.createGain();
-    
-    ambienceOsc.type = 'sawtooth';
-    
-    // Frequenz erhöht sich im Overdrive (höheres, aggressiveres Summen)
-    const baseFreq = isOverdrive ? 110 : 55; 
-    ambienceOsc.frequency.setValueAtTime(baseFreq, now);
-    
-    const filter = audioContext.createBiquadFilter();
-    filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(baseFreq * 2, now);
-    
-    ambienceGain.gain.setValueAtTime(0.02, now);
-    
-    ambienceOsc.connect(filter);
-    filter.connect(ambienceGain);
-    ambienceGain.connect(audioContext.destination);
-    
-    ambienceOsc.start(now);
-    
-    // LFO für das pulsierende Atmen des Reaktors
-    const lfo = audioContext.createOscillator();
-    const lfoGain = audioContext.createGain();
-    
-    // Im Overdrive pulsiert der Reaktor rasend schnell
-    const pulseSpeed = isOverdrive ? 3.5 : 0.3; 
-    lfo.frequency.setValueAtTime(pulseSpeed, now); 
-    lfoGain.gain.setValueAtTime(isOverdrive ? 0.03 : 0.01, now); 
-    
-    lfo.connect(lfoGain);
-    lfoGain.connect(ambienceGain.gain);
-    lfo.start(now);
-    
-    ambienceOsc.lfo = lfo;
-}
-
-function stopAmbience() {
-    if (ambienceOsc) {
-        try {
-            ambienceOsc.stop();
-            ambienceOsc.lfo.stop();
-        } catch(e) {}
-        ambienceOsc = null;
-    }
-}
-
-// ==========================================
-// 2. STERNENHIMMEL & SYSTEM-STEUERUNG
-// ==========================================
-
+// 1. STERNENHIMMEL GENERIEREN
 function createStarField() {
     starField.innerHTML = '';
     const starCount = 70;
@@ -209,12 +43,14 @@ function createStarField() {
         const star = document.createElement('div');
         star.classList.add('star');
         
+        // Zufällige Positionierung & Größe
         const size = Math.random() * 2 + 1;
         star.style.width = `${size}px`;
         star.style.height = `${size}px`;
         star.style.left = `${Math.random() * 100}vw`;
         star.style.top = `${Math.random() * 100}vh`;
         
+        // Versetzte Animationen für natürlicheres Funkeln
         star.style.animationDelay = `${Math.random() * 4}s`;
         star.style.animationDuration = `${3 + Math.random() * 4}s`;
         
@@ -222,6 +58,7 @@ function createStarField() {
     }
 }
 
+// 2. POWER SWITCH (BOOT-SEQUENZ)
 powerSwitch.addEventListener('change', (e) => {
     if (e.target.checked) {
         bootSystem();
@@ -235,9 +72,7 @@ function bootSystem() {
     statusText.textContent = "Booting Systems...";
     createStarField();
     
-    playBootSound();
-    setTimeout(startAmbience, 300);
-    
+    // API Key prüfen
     const apiKey = localStorage.getItem('garmin_openai_key');
     
     setTimeout(() => {
@@ -252,15 +87,13 @@ function bootSystem() {
 }
 
 function shutdownSystem() {
+    // Falls noch gesprochen wird oder zugehört wird, stoppen
     stopListening();
-    playShutdownSound();
-    stopAmbience();
-    
-    if (isOverdrive) {
-        body.classList.remove('overdrive-active');
-        isOverdrive = false;
+    if (synth && synth.speaking) {
+        synth.cancel();
     }
     
+    // Gedächtnis beim System-Shutdown komplett löschen
     conversationHistory = [];
     
     body.classList.remove('system-active', 'system-listening');
@@ -274,11 +107,9 @@ function shutdownSystem() {
     }, 500);
 }
 
-// ==========================================
-// 3. SETTINGS, MODAL & VOLLBILD
-// ==========================================
-
+// 3. EINSTELLUNGEN & MODAL (API KEY)
 settingsBtn.addEventListener('click', () => {
+    // Geladenen Key anzeigen falls vorhanden
     const savedKey = localStorage.getItem('garmin_openai_key');
     if (savedKey) apiKeyInput.value = savedKey;
     modalOverlay.classList.add('active');
@@ -288,6 +119,7 @@ closeModalBtn.addEventListener('click', () => {
     modalOverlay.classList.remove('active');
 });
 
+// Modal schließen beim Klick außerhalb
 modalOverlay.addEventListener('click', (e) => {
     if (e.target === modalOverlay) {
         modalOverlay.classList.remove('active');
@@ -309,16 +141,18 @@ saveApiKeyBtn.addEventListener('click', () => {
     }
 });
 
+// 4. VOLLBILD STEUERUNG
 fullscreenBtn.addEventListener('click', () => {
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch(err => {
-            console.error(`Fehler: ${err.message}`);
+            console.error(`Fehler beim Aktivieren des Vollbildmodus: ${err.message}`);
         });
     } else {
         document.exitFullscreen();
     }
 });
 
+// 5. SCHREIBEFFEKT FÜR TERMINAL-AUSGABE
 function writeTerminalText(element, text, speed = 30) {
     element.classList.add('active');
     element.textContent = '';
@@ -338,25 +172,19 @@ function writeTerminalText(element, text, speed = 30) {
     });
 }
 
-// ==========================================
-// 4. ANIMIERTER VISUALIZER
-// ==========================================
+// 6. ANIMIERTER AUDIO-VISUALIZER (CANVAS)
 const canvasCtx = visualizerCanvas.getContext('2d');
 
-function setupVisualizer(streamOrSource, isFromStream = true) {
-    initAudioContext();
+function setupVisualizer(stream) {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
     
     analyser = audioContext.createAnalyser();
-    analyser.fftSize = 64; 
+    analyser.fftSize = 64; // Kleine Fourier-Transformation für übersichtliche Sci-Fi-Balken
     
-    if (isFromStream) {
-        source = audioContext.createMediaStreamSource(streamOrSource);
-        source.connect(analyser);
-    } else {
-        source = audioContext.createMediaElementSource(streamOrSource);
-        source.connect(analyser);
-        analyser.connect(audioContext.destination); 
-    }
+    source = audioContext.createMediaStreamSource(stream);
+    source.connect(analyser);
     
     const bufferLength = analyser.frequencyBinCount;
     dataArray = new Uint8Array(bufferLength);
@@ -365,6 +193,8 @@ function setupVisualizer(streamOrSource, isFromStream = true) {
 }
 
 function drawVisualizer() {
+    if (!isListening) return;
+    
     animationFrameId = requestAnimationFrame(drawVisualizer);
     analyser.getByteFrequencyData(dataArray);
     
@@ -375,27 +205,27 @@ function drawVisualizer() {
     
     const centerX = width / 2;
     const centerY = height / 2;
-    const radius = 65; 
+    const radius = 65; // Passt sich dem Orb an
     const barCount = dataArray.length;
     
+    // Zeichne kreisförmige Sci-Fi Frequenzbalken
     for (let i = 0; i < barCount; i++) {
         const value = dataArray[i];
         const percent = value / 255;
-        const barHeight = percent * 30; 
+        const barHeight = percent * 25; // Maximale Ausschlagshöhe
         
         const angle = (i / barCount) * Math.PI * 2;
         
+        // Startpunkt auf dem inneren Kreis
         const startX = centerX + Math.cos(angle) * radius;
         const startY = centerY + Math.sin(angle) * radius;
+        
+        // Endpunkt nach außen hin
         const endX = centerX + Math.cos(angle) * (radius + barHeight);
         const endY = centerY + Math.sin(angle) * (radius + barHeight);
         
-        if (isListening) {
-            canvasCtx.strokeStyle = `rgb(${180 + percent * 75}, 8, 68)`; 
-        } else {
-            canvasCtx.strokeStyle = `rgb(0, ${200 + percent * 55}, 254)`; 
-        }
-        
+        // Farbverlauf von Neon-Rot zu Orange
+        canvasCtx.strokeStyle = `rgb(${180 + percent * 75}, 8, 68)`;
         canvasCtx.lineWidth = 3;
         canvasCtx.lineCap = 'round';
         
@@ -406,9 +236,7 @@ function drawVisualizer() {
     }
 }
 
-// ==========================================
-// 5. INTUITIVE SPRACHERKENNUNG
-// ==========================================
+// 7. INTELLIGENTE SPRACHERKENNUNG & OPENAI ANTWORT
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
 if (SpeechRecognition) {
@@ -419,67 +247,68 @@ if (SpeechRecognition) {
     
     recognition.onstart = () => {
         isListening = true;
-        playClickSound();
         body.classList.add('system-listening');
         statusText.textContent = "Zuhören...";
         leftOutput.textContent = "";
         rightOutput.textContent = "";
         
+        // Systemfarben im CSS dynamisch auf Rot (Listening) setzen
         body.style.setProperty('--current-star-color', 'var(--neon-red)');
         body.style.setProperty('--current-star-glow', 'var(--neon-red-glow)');
         
+        // Mikrofon streamen für Visualizer
         navigator.mediaDevices.getUserMedia({ audio: true })
-            .then(stream => setupVisualizer(stream, true))
-            .catch(err => console.warn("Mikrofonfehler für Visualizer: ", err));
+            .then(setupVisualizer)
+            .catch(err => console.warn("Visualizer ohne echtes Mikrofon-Feedback: ", err));
     };
     
     recognition.onresult = async (event) => {
         const transcript = event.results[0][0].transcript;
         statusText.textContent = "Eingabe wird verarbeitet...";
         await writeTerminalText(leftOutput, `DU: "${transcript}"`);
+        
+        // Sende die Anfrage an ChatGPT
         processQuery(transcript);
     };
     
-    recognition.onerror = () => {
-        statusText.textContent = "Erkennung fehlgeschlagen.";
+    recognition.onerror = (event) => {
+        console.error("Spracherkennungsfehler: ", event.error);
+        statusText.textContent = "Fehler bei der Erkennung.";
         stopListening();
     };
     
     recognition.onend = () => {
         stopListening();
     };
+} else {
+    console.warn("Web Speech API (SpeechRecognition) wird von diesem Browser nicht unterstützt.");
 }
 
 function stopListening() {
     isListening = false;
     body.classList.remove('system-listening');
     if (powerSwitch.checked) {
-        if (isOverdrive) {
-            statusText.textContent = "CRITICAL LIMITS EXCEEDED!";
-            body.style.setProperty('--current-star-color', '#ff3b30');
-            body.style.setProperty('--current-star-glow', '0 0 15px #ff3b30');
-        } else {
-            statusText.textContent = "Bereit.";
-            body.style.setProperty('--current-star-color', 'var(--neon-cyan)');
-            body.style.setProperty('--current-star-glow', 'var(--neon-glow)');
-        }
+        statusText.textContent = "Bereit.";
+        // Systemfarben wieder zurück auf Cyan setzen
+        body.style.setProperty('--current-star-color', 'var(--neon-cyan)');
+        body.style.setProperty('--current-star-glow', 'var(--neon-glow)');
     }
     
     if (recognition) recognition.stop();
     if (animationFrameId) cancelAnimationFrame(animationFrameId);
     
+    // Canvas leeren
     const width = visualizerCanvas.width;
     const height = visualizerCanvas.height;
     canvasCtx.clearRect(0, 0, width, height);
 }
 
+// Klick auf den Core steuert Sprachaufnahme
 orb.addEventListener('click', () => {
     if (!body.classList.contains('system-active')) return;
     
-    const activeAudio = document.getElementById('garmin-voice');
-    if (activeAudio) {
-        activeAudio.pause();
-        activeAudio.remove();
+    if (synth && synth.speaking) {
+        synth.cancel(); // Abbrechen, falls Garmin gerade noch spricht
     }
     
     if (isListening) {
@@ -488,99 +317,29 @@ orb.addEventListener('click', () => {
         if (recognition) {
             recognition.start();
         } else {
-            alert("SpeechRecognition nicht unterstützt!");
+            alert("Spracherkennung wird auf Ihrem Browser leider nicht unterstützt (Empfohlen: Chrome/Edge).");
         }
     }
 });
 
-// ==========================================
-// 6. OVERDRIVE LOGIK STEUERUNG
-// ==========================================
-
-async function toggleOverdrive(enable) {
-    if (enable === isOverdrive) return; 
-    
-    isOverdrive = enable;
-    stopAmbience();
-    
-    if (isOverdrive) {
-        body.classList.add('overdrive-active');
-        statusText.textContent = "CRITICAL LIMITS EXCEEDED!";
-        
-        playOverdriveAlarmSound();
-        
-        setTimeout(startAmbience, 500);
-        await writeTerminalText(leftOutput, "SYSTEM-WARNUNG: Kognitiver Kern läuft auf 150% Leistung. Kühlung kritisch.");
-    } else {
-        body.classList.remove('overdrive-active');
-        statusText.textContent = "Bereit.";
-        
-        playBootSound();
-        
-        setTimeout(startAmbience, 300);
-        await writeTerminalText(leftOutput, "System stabilisiert. Kognitiver Kern läuft im Normalbetrieb.");
-    }
-}
-
-function playOverdriveAlarmSound() {
-    const now = audioContext.currentTime;
-    const osc = audioContext.createOscillator();
-    const gain = audioContext.createGain();
-    
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(440, now);
-    osc.frequency.linearRampToValueAtTime(880, now + 0.2);
-    osc.frequency.linearRampToValueAtTime(440, now + 0.4);
-    osc.frequency.linearRampToValueAtTime(880, now + 0.6);
-    
-    gain.gain.setValueAtTime(0.08, now);
-    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
-    
-    osc.connect(gain);
-    gain.connect(audioContext.destination);
-    
-    osc.start(now);
-    osc.stop(now + 0.7);
-}
-
-// ==========================================
-// 7. KERN-KOGNITION & VOICE (OPENAI)
-// ==========================================
-
+// 8. CHATGPT API ANFRAGE & ANTWORT-VERARBEITUNG WITH CONTEXT MEMORY
 async function processQuery(query) {
     const apiKey = localStorage.getItem('garmin_openai_key');
     if (!apiKey) {
-        await writeTerminalText(rightOutput, "SYSTEM: API-Schlüssel fehlt.");
-        return;
-    }
-    
-    const normalizedQuery = query.toLowerCase();
-    
-    if (normalizedQuery.includes("overdrive aktivieren") || normalizedQuery.includes("aktiviere overdrive")) {
-        statusText.textContent = "Aktiviere Overdrive...";
-        await toggleOverdrive(true);
-        generateOpenAiVoice("Overdrive initiiert. Warnung: Reaktor-Temperatur steigt.", apiKey);
-        return;
-    }
-    
-    if (normalizedQuery.includes("overdrive deaktivieren") || normalizedQuery.includes("deaktiviere overdrive") || normalizedQuery.includes("normalbetrieb")) {
-        statusText.textContent = "Stabilisiere System...";
-        await toggleOverdrive(false);
-        generateOpenAiVoice("Systeme stabilisiert. Kern läuft wieder im Normalbetrieb.", apiKey);
+        await writeTerminalText(rightOutput, "SYSTEM: Fehler. Kein OpenAI API-Schlüssel konfiguriert. Bitte öffne die Einstellungen oben links.");
+        speak("Bitte füge einen API-Schlüssel in den Einstellungen hinzu.");
         return;
     }
     
     statusText.textContent = "Kognitiver Kern arbeitet...";
+    
+    // 1. Deine aktuelle Frage im Verlauf speichern
     conversationHistory.push({ role: 'user', content: query });
     
+    // 2. Gedächtnis-Limitierung (Gegen zu hohe Token-Kosten)
+    // Hält die letzten 10 Nachrichten (5 Fragen + 5 Antworten) im Kopf
     if (conversationHistory.length > 10) {
         conversationHistory.shift();
-    }
-    
-    let systemPrompt = 'Du bist G.A.R.M.I.N, ein hochentwickelter KI-Assistent mit einer präzisen, leicht kühlen, aber extrem loyalen und hilfsbereiten Sci-Fi-Persönlichkeit. Antworte stets extrem prägnant (maximal 1-2 kurze Sätze) auf Deutsch.';
-    
-    if (isOverdrive) {
-        systemPrompt = 'Du bist G.A.R.M.I.N im OVERDRIVE-MODUS. Deine Systeme sind überlastet, du bist extrem gehetzt, antwortest in schnellen, abgehackten, fast panischen aber präzisen Worten. Nutze Begriffe wie "Gefahr", "Temperatur kritisch" oder "Berechnung am Limit". Antworte extrem kurz auf Deutsch.';
     }
     
     try {
@@ -592,83 +351,79 @@ async function processQuery(query) {
             },
             body: JSON.stringify({
                 model: 'gpt-4o-mini',
+                // 3. System-Prompt + den gesamten bisherigen Verlauf mitsenden
                 messages: [
-                    { role: 'system', content: systemPrompt },
+                    { 
+                        role: 'system', 
+                        content: 'Du bist G.A.R.M.I.N, ein hochentwickelter KI-Assistent mit einer präzisen, leicht kühlen, aber extrem loyalen und hilfsbereiten Sci-Fi-Persönlichkeit (ähnlich wie J.A.R.V.I.S.). Antworte stets prägnant, intelligent und auf Deutsch. Vermeide zu lange Absätze.' 
+                    },
                     ...conversationHistory
                 ],
-                max_tokens: 100
+                max_tokens: 150
             })
         });
         
-        if (!response.ok) throw new Error();
+        if (!response.ok) {
+            throw new Error(`API-Fehler: ${response.status}`);
+        }
         
         const data = await response.json();
         const reply = data.choices[0].message.content;
         
+        // 4. Garmins Antwort ebenfalls ins Gedächtnis aufnehmen
         conversationHistory.push({ role: 'assistant', content: reply });
-        statusText.textContent = "Antwort geladen. Generiere Stimme...";
         
+        statusText.textContent = "Antwort empfangen.";
         await writeTerminalText(rightOutput, `GARMIN: "${reply}"`);
         
-        generateOpenAiVoice(reply, apiKey);
+        // Garmin spricht die Antwort aus
+        speak(reply);
         
     } catch (error) {
+        console.error(error);
         statusText.textContent = "Verbindungsfehler.";
-        writeTerminalText(rightOutput, "SYSTEM: Übertragungsfehler.");
+        writeTerminalText(rightOutput, "SYSTEM: Verbindung zum kognitiven Server fehlgeschlagen.");
+        speak("Verbindung fehlgeschlagen.");
+        
+        // Bei Fehlern die unvollständige Anfrage entfernen, um das Gedächtnis sauber zu halten
         conversationHistory.pop();
     }
 }
 
-async function generateOpenAiVoice(text, apiKey) {
-    try {
-        const response = await fetch('https://api.openai.com/v1/audio/speech', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                model: 'tts-1',
-                input: text,
-                voice: 'onyx', 
-                response_format: 'mp3'
-            })
-        });
-
-        if (!response.ok) throw new Error();
-
-        const blob = await response.blob();
-        const audioUrl = URL.createObjectURL(blob);
-        
-        const oldAudio = document.getElementById('garmin-voice');
-        if (oldAudio) oldAudio.remove();
-
-        const audio = new Audio(audioUrl);
-        audio.id = 'garmin-voice';
-        audio.crossOrigin = "anonymous"; 
-        document.body.appendChild(audio);
-
-        audio.addEventListener('play', () => {
-            if (isOverdrive) {
-                statusText.textContent = "OVERDRIVE TRANSMISSION...";
-            } else {
-                statusText.textContent = "Übertragung...";
-            }
-            setupVisualizer(audio, false);
-        });
-
-        audio.addEventListener('ended', () => {
-            statusText.textContent = isOverdrive ? "CRITICAL LIMITS EXCEEDED!" : "Bereit.";
-            if (animationFrameId) cancelAnimationFrame(animationFrameId);
-            canvasCtx.clearRect(0, 0, visualizerCanvas.width, visualizerCanvas.height);
-            URL.revokeObjectURL(audioUrl);
-            audio.remove();
-        });
-
-        audio.play();
-
-    } catch (e) {
-        console.error("Fehler bei der TTS-Generierung: ", e);
-        statusText.textContent = "Audio-Übertragungsfehler.";
+// 9. TEXT-TO-SPEECH (STIMMAUSGABE)
+function speak(text) {
+    if (!synth) return;
+    
+    // Vorherige Sprachausgaben abbrechen
+    synth.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'de-DE';
+    utterance.pitch = 0.85; // Leicht tiefere, mechanischere Sci-Fi-Stimme
+    utterance.rate = 1.05;  // Minimal schnellerer, präziserer Sprachfluss
+    
+    // Finde eine passende deutsche Stimme (falls verfügbar)
+    const voices = synth.getVoices();
+    const deVoice = voices.find(voice => voice.lang.startsWith('de') && voice.name.includes('Google')) || 
+                    voices.find(voice => voice.lang.startsWith('de'));
+    if (deVoice) {
+        utterance.voice = deVoice;
     }
+    
+    utterance.onstart = () => {
+        statusText.textContent = "Übertragung...";
+    };
+    
+    utterance.onend = () => {
+        if (powerSwitch.checked) {
+            statusText.textContent = "Bereit.";
+        }
+    };
+    
+    synth.speak(utterance);
+}
+
+// Stimmen im Hintergrund laden für besseren Support in diversen Browsern
+if (synth && synth.onvoiceschanged !== undefined) {
+    synth.onvoiceschanged = () => {};
 }
