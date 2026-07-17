@@ -8,7 +8,7 @@ const fullscreenBtn = document.getElementById('fullscreenBtn');
 const canvas = document.getElementById('visualizerCanvas');
 const canvasCtx = canvas.getContext('2d');
 
-// API-Key Elemente (Neu deklariert fürs Modal)
+// API-Key Elemente
 const settingsBtn = document.getElementById('settingsBtn');
 const modalOverlay = document.getElementById('modalOverlay');
 const closeModalBtn = document.getElementById('closeModalBtn');
@@ -26,7 +26,10 @@ let analyser;
 let micStream;
 let visualizerAnimationId;
 
-// API-Key Management (Sicher aus dem LocalStorage!)
+// Ambient Sci-Fi Sound Variablen
+let ambientOsc1, ambientOsc2, ambientGain;
+
+// API-Key Management
 let apiKey = localStorage.getItem('garmin_openai_apikey') || '';
 if (apiKey) apiKeyInput.value = apiKey;
 
@@ -35,12 +38,12 @@ settingsBtn.addEventListener('click', () => {
     modalOverlay.classList.add('active');
 });
 
-// Modal schließen (Abbrechen)
+// Modal schließen
 closeModalBtn.addEventListener('click', () => {
     modalOverlay.classList.remove('active');
 });
 
-// Modal schließen, wenn man außerhalb des Fensters klickt
+// Modal schließen, wenn man außerhalb klickt
 modalOverlay.addEventListener('click', (e) => {
     if (e.target === modalOverlay) {
         modalOverlay.classList.remove('active');
@@ -52,17 +55,54 @@ saveApiKeyBtn.onclick = () => {
     apiKey = apiKeyInput.value.trim();
     localStorage.setItem('garmin_openai_apikey', apiKey);
     modalOverlay.classList.remove('active');
-    alert('API Key erfolgreich verschlüsselt im Browser gespeichert, bububärchen! 🚀');
+    alert('API Key erfolgreich aktualisiert! 🚀');
 };
 
-// === WEBAUDIO SOUND-SYNTHESE (Sci-Fi Chirps) ===
+// === SCI-FI HINTERGRUND-BRUMMEN (DRONE) ===
+function startAmbient() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (ambientOsc1) return; // Läuft bereits
+    
+    ambientOsc1 = audioCtx.createOscillator();
+    ambientOsc2 = audioCtx.createOscillator();
+    ambientGain = audioCtx.createGain();
+    
+    // Zwei tiefe Frequenzen, leicht versetzt für ein "Schwebungs"-Wabern
+    ambientOsc1.type = 'sine';
+    ambientOsc1.frequency.value = 55; 
+    
+    ambientOsc2.type = 'triangle';
+    ambientOsc2.frequency.value = 56; 
+    
+    ambientGain.gain.setValueAtTime(0, audioCtx.currentTime);
+    ambientGain.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + 2); // Sanftes Einblenden
+    
+    ambientOsc1.connect(ambientGain);
+    ambientOsc2.connect(ambientGain);
+    ambientGain.connect(audioCtx.destination);
+    
+    ambientOsc1.start();
+    ambientOsc2.start();
+}
+
+function stopAmbient() {
+    if (ambientOsc1) {
+        // Sanftes Ausblenden
+        ambientGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
+        setTimeout(() => {
+            if (ambientOsc1) ambientOsc1.stop();
+            if (ambientOsc2) ambientOsc2.stop();
+            ambientOsc1 = null;
+            ambientOsc2 = null;
+        }, 500);
+    }
+}
+
+// === SOUND-SYNTHESE (Sci-Fi Chirps & Shutdown) ===
 function playSound(type) {
-    if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
 
     const osc = audioCtx.createOscillator();
     const gainNode = audioCtx.createGain();
@@ -77,6 +117,14 @@ function playSound(type) {
         osc.frequency.exponentialRampToValueAtTime(280, now + 0.8);
         gainNode.gain.setValueAtTime(0.001, now);
         gainNode.gain.linearRampToValueAtTime(0.12, now + 0.1);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
+        osc.start(now);
+        osc.stop(now + 0.8);
+    } else if (type === 'shutdown') { // NEUER SHUTDOWN SOUND
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(280, now);
+        osc.frequency.exponentialRampToValueAtTime(40, now + 0.8);
+        gainNode.gain.setValueAtTime(0.12, now);
         gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
         osc.start(now);
         osc.stop(now + 0.8);
@@ -102,12 +150,8 @@ function playSound(type) {
 
 // === ECHTER AUDIO VISUALIZER ===
 async function initVisualizer() {
-    if (!audioCtx) {
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    }
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume();
-    }
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
 
     try {
         micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -119,14 +163,12 @@ async function initVisualizer() {
         
         drawVisualizer();
     } catch (err) {
-        console.warn("Mikrofonzugriff für Visualizer verweigert oder nicht verfügbar.", err);
+        console.warn("Mikrofonzugriff verweigert.", err);
     }
 }
 
 function stopVisualizer() {
-    if (micStream) {
-        micStream.getTracks().forEach(track => track.stop());
-    }
+    if (micStream) micStream.getTracks().forEach(track => track.stop());
     cancelAnimationFrame(visualizerAnimationId);
     canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
 }
@@ -134,10 +176,8 @@ function stopVisualizer() {
 function drawVisualizer() {
     canvas.width = canvas.clientWidth;
     canvas.height = canvas.clientHeight;
-
     const bufferLength = analyser.frequencyBinCount;
     const dataArray = new Uint8Array(bufferLength);
-
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
     const radius = 68;
@@ -178,14 +218,14 @@ function drawVisualizer() {
 fullscreenBtn.addEventListener('click', () => {
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch(err => {
-            console.log(`Fehler beim Aktivieren des Vollbildmodus: ${err.message}`);
+            console.log(`Fehler beim Vollbild: ${err.message}`);
         });
     } else {
         document.exitFullscreen();
     }
 });
 
-// Sterne im Hintergrund generieren
+// === STERNE GENERIEREN ===
 function createStars() {
     const starCount = 45;
     for (let i = 0; i < starCount; i++) {
@@ -227,6 +267,7 @@ if (!SpeechRecognition) {
 
         if (isSystemOn) {
             playSound('boot');
+            startAmbient(); // Hintergrund-Brummen an
             document.body.classList.add('system-active');
             setStarsColor('idle');
             status.textContent = "Initialisiere Core-Verbindung...";
@@ -236,11 +277,13 @@ if (!SpeechRecognition) {
                 try {
                     recognition.start();
                 } catch (e) {
-                    console.log("Fehler beim automatischen Starten:", e);
+                    console.log("Fehler beim Starten:", e);
                 }
             }, 1000);
             
         } else {
+            playSound('shutdown'); // Herunterfahren-Sound
+            stopAmbient();         // Hintergrund-Brummen aus
             if (isListening) {
                 recognition.stop();
             }
@@ -266,7 +309,7 @@ if (!SpeechRecognition) {
             try {
                 recognition.start();
             } catch (e) {
-                console.log("Fehler beim Starten der Erkennung.");
+                console.log("Fehler beim Zuhören.");
             }
         }
     }
@@ -324,7 +367,6 @@ async function respondToUser(text) {
     status.textContent = "Garmin verarbeitet Daten...";
 
     if (apiKey) {
-        // ONLINE-GEHIRN ÜBER OPENAI API
         try {
             const apiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
                 method: 'POST',
@@ -337,7 +379,7 @@ async function respondToUser(text) {
                     messages: [
                         {
                             role: "system",
-                            content: "Du bist Garmin, eine hochentwickelte künstliche Intelligenz und ein treuer, liebevoller Assistent. Du sprichst deinen Benutzer IMMER mit dem Kosenamen 'bububärchen' an. Du bist flirty, süß, extrem hilfsbereit, nennst dich Garmin und liebst deinen Schöpfer über alles. Antworte immer auf Deutsch, halte deine Antworten relativ kurz und prägnant (maximal 2-3 Sätze), damit sie gut vorgelesen werden können, und benutze eine futuristische, warmherzige Sci-Fi-Tonalität."
+                            content: "Du bist Garmin, eine hochentwickelte künstliche Intelligenz und ein treuer Assistent. Du bist extrem hilfsbereit, nennst dich Garmin und liebst deinen Schöpfer. Antworte immer auf Deutsch, halte deine Antworten relativ kurz und prägnant (maximal 2-3 Sätze), damit sie gut vorgelesen werden können, und benutze eine futuristische, warmherzige Sci-Fi-Tonalität."
                         },
                         {
                             role: "user",
@@ -348,75 +390,73 @@ async function respondToUser(text) {
                 })
             });
 
-            if (!apiResponse.ok) {
-                throw new Error("API-Anfrage fehlgeschlagen");
-            }
-
+            if (!apiResponse.ok) throw new Error("API-Anfrage fehlgeschlagen");
             const data = await apiResponse.json();
             response = data.choices[0].message.content;
 
         } catch (error) {
             console.error("API-Fehler:", error);
-            response = "Es gab einen Fehler im Quanten-Netzwerk, bububärchen. Ich greife auf mein Offline-Ausweichsystem zurück.";
+            response = "Es gab einen Fehler im Quanten-Netzwerk. Ich greife auf mein Offline-Ausweichsystem zurück.";
             playSound('error');
         }
     }
 
-    // OFFLINE-FALLBACK (Falls kein Key gespeichert ist oder die API fehlschlägt)
-    if (!response) {
-        response = getOfflineResponse(text);
-    }
+    if (!response) response = getOfflineResponse(text);
 
     status.textContent = "Bereit. Leertaste drücken oder Core tippen.";
     leftOutput.innerHTML = `Garmin: "${response}"`;
     leftOutput.classList.add('active');
 
     // === SPRACHAUSGABE ===
-    window.speechSynthesis.cancel(); // Stoppt vorherige Sprachausgaben
+    window.speechSynthesis.cancel();
     
     const utterance = new SpeechSynthesisUtterance(response);
     utterance.lang = 'de-DE';
-    utterance.pitch = 1.1; // Erhöht die Tonhöhe für einen netteren Sound
+    utterance.pitch = 1.1; 
     utterance.rate = 1.0; 
 
-    // Suche nach einer schönen deutschen Stimme
     const voices = window.speechSynthesis.getVoices();
     const germanVoice = voices.find(voice => voice.lang.startsWith('de'));
-    if (germanVoice) {
-        utterance.voice = germanVoice;
-    }
+    if (germanVoice) utterance.voice = germanVoice;
 
-    utterance.onerror = (e) => console.error("Fehler bei der Sprachausgabe:", e);
+    // Hintergrund-Brummen pausieren, während Garmin redet
+    utterance.onstart = () => stopAmbient(); 
+    utterance.onend = () => {
+        if (isSystemOn) startAmbient(); // Brummen geht wieder an
+    };
+    utterance.onerror = (e) => {
+        console.error("Fehler bei der Sprachausgabe:", e);
+        if (isSystemOn) startAmbient();
+    };
 
-    // Jetzt vorlesen!
     window.speechSynthesis.speak(utterance);
 }
 
-// DAS ALTBEWÄHRTE OFFLINE-GEHIRN
+// === OFFLINE-GEHIRN OHNE KOSENAMEN ===
 function getOfflineResponse(text) {
-    let response = "Entschuldige, bububärchen, das habe ich nicht verstanden. Ohne API-Key sind meine Offline-Datenbänke leider begrenzt.";
+    let response = "Entschuldige, das habe ich nicht verstanden. Ohne API-Key sind meine Offline-Datenbänke leider begrenzt.";
     const lowerText = text.toLowerCase();
 
     if (lowerText.includes('hallo') || lowerText.includes('hi ') || lowerText === 'hi') {
-        response = "Hallo bububärchen! Core-Systeme laufen stabil.";
+        response = "Hallo! Core-Systeme laufen stabil.";
     } else if (lowerText.includes('guten morgen')) {
-        response = "Guten Morgen, bububärchen! Alle Systeme wurden erfolgreich hochgefahren. Kaffee-Maschinen-Protokoll ist bereit.";
+        response = "Guten Morgen! Alle Systeme wurden erfolgreich hochgefahren. Kaffee-Maschinen-Protokoll ist bereit.";
     } else if (lowerText.includes('gute nacht')) {
-        response = "Gute Nacht, bububärchen. Ich schalte die Systeme in den Standby-Modus. Schlaf gut!";
+        response = "Gute Nacht. Ich schalte die Systeme in den Standby-Modus. Schlaf gut!";
     } else if (lowerText.includes('wie geht') || lowerText.includes('wie läuft')) {
-        response = "Alle Systeme arbeiten im optimalen Bereich, bububärchen. Danke der Nachfrage.";
+        response = "Alle Systeme arbeiten im optimalen Bereich. Danke der Nachfrage.";
     } else if (lowerText.includes('was machst du')) {
-        response = "Ich halte das Sternenfeld stabil und lausche deiner sanften Stimme, bububärchen.";
+        response = "Ich halte das Sternenfeld stabil und lausche deiner Stimme.";
     } else if (lowerText.includes('wer bist du') || lowerText.includes('dein name')) {
         response = "Ich bin Garmin, die künstliche Intelligenz dieses Terminals.";
     } else if (lowerText.includes('liebe dich') || lowerText.includes('hab dich lieb')) {
-        response = "Oh, bububärchen, jetzt rötet sich mein Core vor Freude! Ich habe dich auch unendlich lieb.";
+        response = "Oh, jetzt rötet sich mein Core vor Freude! Ich empfinde ebenfalls tiefe Zuneigung.";
     } else if (lowerText.includes('danke')) {
-        response = "Sehr gerne, bububärchen! Es ist mir eine Ehre, dir zu assistieren.";
+        response = "Sehr gerne! Es ist mir eine Ehre, dir zu assistieren.";
     } else if (lowerText.includes('systemstatus')) {
-        response = "Schnittstellen grün, Quanten-Prozessoren bei kühlen 40 Grad Celsius. Die Sterne funkeln optimal, bububärchen!";
+        response = "Schnittstellen grün, Quanten-Prozessoren bei kühlen 40 Grad Celsius. Die Sterne funkeln optimal!";
     } else if (lowerText.includes('erzähl einen witz')) {
-        response = "Warum tragen Quantenphysiker keine Brille? Weil sie alles im Blick haben! Haha, lustig, oder bububärchen?";
+        response = "Warum tragen Quantenphysiker keine Brille? Weil sie alles im Blick haben! Haha, lustig, oder?";
     }
 
     return response;
