@@ -37,6 +37,9 @@ let ambienceGain;
 // SYSTEM-GEDÄCHTNIS (Speichert den Gesprächsverlauf)
 let conversationHistory = [];
 
+// Overdrive Status-Flag
+let isOverdrive = false;
+
 // ==========================================
 // 1. SYNTHETISCHE SOUND-EFFEKTE (Web Audio)
 // ==========================================
@@ -80,7 +83,6 @@ function playBootSound() {
     gain2.gain.setValueAtTime(0.08, now);
     gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
     
-    // Filter hinzufügen für dumpfen Sci-Fi Klang
     const filter = audioContext.createBiquadFilter();
     filter.type = 'lowpass';
     filter.frequency.setValueAtTime(300, now);
@@ -148,19 +150,19 @@ function startAmbience() {
     initAudioContext();
     const now = audioContext.currentTime;
     
-    // Tiefer Oszillator für das Fundament (Brummen)
     ambienceOsc = audioContext.createOscillator();
     ambienceGain = audioContext.createGain();
     
     ambienceOsc.type = 'sawtooth';
-    ambienceOsc.frequency.setValueAtTime(55, now); // Sehr tiefes A
     
-    // Sanfter Filter, damit es nicht kratzt
+    // Frequenz erhöht sich im Overdrive (höheres, aggressiveres Summen)
+    const baseFreq = isOverdrive ? 110 : 55; 
+    ambienceOsc.frequency.setValueAtTime(baseFreq, now);
+    
     const filter = audioContext.createBiquadFilter();
     filter.type = 'lowpass';
-    filter.frequency.setValueAtTime(110, now);
+    filter.frequency.setValueAtTime(baseFreq * 2, now);
     
-    // Geringe Lautstärke (Soll nur dezent im Hintergrund laufen)
     ambienceGain.gain.setValueAtTime(0.02, now);
     
     ambienceOsc.connect(filter);
@@ -169,17 +171,19 @@ function startAmbience() {
     
     ambienceOsc.start(now);
     
-    // LFO (Low Frequency Oscillator) für das pulsierende Atmen des Reaktors
+    // LFO für das pulsierende Atmen des Reaktors
     const lfo = audioContext.createOscillator();
     const lfoGain = audioContext.createGain();
-    lfo.frequency.setValueAtTime(0.3, now); // Pulsiert alle ~3 Sekunden
-    lfoGain.gain.setValueAtTime(0.01, now); // Stärke des Pulsierens
+    
+    // Im Overdrive pulsiert der Reaktor rasend schnell
+    const pulseSpeed = isOverdrive ? 3.5 : 0.3; 
+    lfo.frequency.setValueAtTime(pulseSpeed, now); 
+    lfoGain.gain.setValueAtTime(isOverdrive ? 0.03 : 0.01, now); 
     
     lfo.connect(lfoGain);
     lfoGain.connect(ambienceGain.gain);
     lfo.start(now);
     
-    // Halte die LFO-Referenz zum Stoppen
     ambienceOsc.lfo = lfo;
 }
 
@@ -231,7 +235,6 @@ function bootSystem() {
     statusText.textContent = "Booting Systems...";
     createStarField();
     
-    // Audio initialisieren, Sounds triggern
     playBootSound();
     setTimeout(startAmbience, 300);
     
@@ -252,6 +255,11 @@ function shutdownSystem() {
     stopListening();
     playShutdownSound();
     stopAmbience();
+    
+    if (isOverdrive) {
+        body.classList.remove('overdrive-active');
+        isOverdrive = false;
+    }
     
     conversationHistory = [];
     
@@ -342,14 +350,12 @@ function setupVisualizer(streamOrSource, isFromStream = true) {
     analyser.fftSize = 64; 
     
     if (isFromStream) {
-        // Verbinde Mikrofon-Stream
         source = audioContext.createMediaStreamSource(streamOrSource);
         source.connect(analyser);
     } else {
-        // Verbinde Audio-Element (Garmins TTS-Antwort)
         source = audioContext.createMediaElementSource(streamOrSource);
         source.connect(analyser);
-        analyser.connect(audioContext.destination); // Muss zu den Boxen geleitet werden
+        analyser.connect(audioContext.destination); 
     }
     
     const bufferLength = analyser.frequencyBinCount;
@@ -384,11 +390,10 @@ function drawVisualizer() {
         const endX = centerX + Math.cos(angle) * (radius + barHeight);
         const endY = centerY + Math.sin(angle) * (radius + barHeight);
         
-        // Farbe passt sich dem Zustand an (Rot beim Zuhören, Cyan beim Sprechen)
         if (isListening) {
-            canvasCtx.strokeStyle = `rgb(${180 + percent * 75}, 8, 68)`; // Rot
+            canvasCtx.strokeStyle = `rgb(${180 + percent * 75}, 8, 68)`; 
         } else {
-            canvasCtx.strokeStyle = `rgb(0, ${200 + percent * 55}, 254)`; // Cyan/Blau
+            canvasCtx.strokeStyle = `rgb(0, ${200 + percent * 55}, 254)`; 
         }
         
         canvasCtx.lineWidth = 3;
@@ -449,9 +454,15 @@ function stopListening() {
     isListening = false;
     body.classList.remove('system-listening');
     if (powerSwitch.checked) {
-        statusText.textContent = "Bereit.";
-        body.style.setProperty('--current-star-color', 'var(--neon-cyan)');
-        body.style.setProperty('--current-star-glow', 'var(--neon-glow)');
+        if (isOverdrive) {
+            statusText.textContent = "CRITICAL LIMITS EXCEEDED!";
+            body.style.setProperty('--current-star-color', '#ff3b30');
+            body.style.setProperty('--current-star-glow', '0 0 15px #ff3b30');
+        } else {
+            statusText.textContent = "Bereit.";
+            body.style.setProperty('--current-star-color', 'var(--neon-cyan)');
+            body.style.setProperty('--current-star-glow', 'var(--neon-glow)');
+        }
     }
     
     if (recognition) recognition.stop();
@@ -465,7 +476,6 @@ function stopListening() {
 orb.addEventListener('click', () => {
     if (!body.classList.contains('system-active')) return;
     
-    // Aktuelle Audio-Wiedergabe stoppen
     const activeAudio = document.getElementById('garmin-voice');
     if (activeAudio) {
         activeAudio.pause();
@@ -484,7 +494,57 @@ orb.addEventListener('click', () => {
 });
 
 // ==========================================
-// 6. KERN-KOGNITION & HIGH-END VOICE (OPENAI TTS)
+// 6. OVERDRIVE LOGIK STEUERUNG
+// ==========================================
+
+async function toggleOverdrive(enable) {
+    if (enable === isOverdrive) return; 
+    
+    isOverdrive = enable;
+    stopAmbience();
+    
+    if (isOverdrive) {
+        body.classList.add('overdrive-active');
+        statusText.textContent = "CRITICAL LIMITS EXCEEDED!";
+        
+        playOverdriveAlarmSound();
+        
+        setTimeout(startAmbience, 500);
+        await writeTerminalText(leftOutput, "SYSTEM-WARNUNG: Kognitiver Kern läuft auf 150% Leistung. Kühlung kritisch.");
+    } else {
+        body.classList.remove('overdrive-active');
+        statusText.textContent = "Bereit.";
+        
+        playBootSound();
+        
+        setTimeout(startAmbience, 300);
+        await writeTerminalText(leftOutput, "System stabilisiert. Kognitiver Kern läuft im Normalbetrieb.");
+    }
+}
+
+function playOverdriveAlarmSound() {
+    const now = audioContext.currentTime;
+    const osc = audioContext.createOscillator();
+    const gain = audioContext.createGain();
+    
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(440, now);
+    osc.frequency.linearRampToValueAtTime(880, now + 0.2);
+    osc.frequency.linearRampToValueAtTime(440, now + 0.4);
+    osc.frequency.linearRampToValueAtTime(880, now + 0.6);
+    
+    gain.gain.setValueAtTime(0.08, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.7);
+    
+    osc.connect(gain);
+    gain.connect(audioContext.destination);
+    
+    osc.start(now);
+    osc.stop(now + 0.7);
+}
+
+// ==========================================
+// 7. KERN-KOGNITION & VOICE (OPENAI)
 // ==========================================
 
 async function processQuery(query) {
@@ -494,11 +554,33 @@ async function processQuery(query) {
         return;
     }
     
+    const normalizedQuery = query.toLowerCase();
+    
+    if (normalizedQuery.includes("overdrive aktivieren") || normalizedQuery.includes("aktiviere overdrive")) {
+        statusText.textContent = "Aktiviere Overdrive...";
+        await toggleOverdrive(true);
+        generateOpenAiVoice("Overdrive initiiert. Warnung: Reaktor-Temperatur steigt.", apiKey);
+        return;
+    }
+    
+    if (normalizedQuery.includes("overdrive deaktivieren") || normalizedQuery.includes("deaktiviere overdrive") || normalizedQuery.includes("normalbetrieb")) {
+        statusText.textContent = "Stabilisiere System...";
+        await toggleOverdrive(false);
+        generateOpenAiVoice("Systeme stabilisiert. Kern läuft wieder im Normalbetrieb.", apiKey);
+        return;
+    }
+    
     statusText.textContent = "Kognitiver Kern arbeitet...";
     conversationHistory.push({ role: 'user', content: query });
     
     if (conversationHistory.length > 10) {
         conversationHistory.shift();
+    }
+    
+    let systemPrompt = 'Du bist G.A.R.M.I.N, ein hochentwickelter KI-Assistent mit einer präzisen, leicht kühlen, aber extrem loyalen und hilfsbereiten Sci-Fi-Persönlichkeit. Antworte stets extrem prägnant (maximal 1-2 kurze Sätze) auf Deutsch.';
+    
+    if (isOverdrive) {
+        systemPrompt = 'Du bist G.A.R.M.I.N im OVERDRIVE-MODUS. Deine Systeme sind überlastet, du bist extrem gehetzt, antwortest in schnellen, abgehackten, fast panischen aber präzisen Worten. Nutze Begriffe wie "Gefahr", "Temperatur kritisch" oder "Berechnung am Limit". Antworte extrem kurz auf Deutsch.';
     }
     
     try {
@@ -511,10 +593,7 @@ async function processQuery(query) {
             body: JSON.stringify({
                 model: 'gpt-4o-mini',
                 messages: [
-                    { 
-                        role: 'system', 
-                        content: 'Du bist G.A.R.M.I.N, ein hochentwickelter KI-Assistent mit einer präzisen, leicht kühlen, aber extrem loyalen und hilfsbereiten Sci-Fi-Persönlichkeit. Antworte stets extrem prägnant (maximal 1-2 kurze Sätze) auf Deutsch.' 
-                    },
+                    { role: 'system', content: systemPrompt },
                     ...conversationHistory
                 ],
                 max_tokens: 100
@@ -531,7 +610,6 @@ async function processQuery(query) {
         
         await writeTerminalText(rightOutput, `GARMIN: "${reply}"`);
         
-        // Generiert die kinoreife Stimme via OpenAI TTS API
         generateOpenAiVoice(reply, apiKey);
         
     } catch (error) {
@@ -541,7 +619,6 @@ async function processQuery(query) {
     }
 }
 
-// Premium OpenAI TTS Integration (Löst dein TTS-Problem vollständig!)
 async function generateOpenAiVoice(text, apiKey) {
     try {
         const response = await fetch('https://api.openai.com/v1/audio/speech', {
@@ -553,7 +630,7 @@ async function generateOpenAiVoice(text, apiKey) {
             body: JSON.stringify({
                 model: 'tts-1',
                 input: text,
-                voice: 'onyx', // Perfekte, tiefe, loyale J.A.R.V.I.S.-Stimme
+                voice: 'onyx', 
                 response_format: 'mp3'
             })
         });
@@ -563,7 +640,6 @@ async function generateOpenAiVoice(text, apiKey) {
         const blob = await response.blob();
         const audioUrl = URL.createObjectURL(blob);
         
-        // Altes Audio-Element löschen falls vorhanden
         const oldAudio = document.getElementById('garmin-voice');
         if (oldAudio) oldAudio.remove();
 
@@ -572,14 +648,17 @@ async function generateOpenAiVoice(text, apiKey) {
         audio.crossOrigin = "anonymous"; 
         document.body.appendChild(audio);
 
-        // Visualizer an die Stimme koppeln, damit der Kreis beim Sprechen mitschwingt!
         audio.addEventListener('play', () => {
-            statusText.textContent = "Übertragung...";
+            if (isOverdrive) {
+                statusText.textContent = "OVERDRIVE TRANSMISSION...";
+            } else {
+                statusText.textContent = "Übertragung...";
+            }
             setupVisualizer(audio, false);
         });
 
         audio.addEventListener('ended', () => {
-            statusText.textContent = "Bereit.";
+            statusText.textContent = isOverdrive ? "CRITICAL LIMITS EXCEEDED!" : "Bereit.";
             if (animationFrameId) cancelAnimationFrame(animationFrameId);
             canvasCtx.clearRect(0, 0, visualizerCanvas.width, visualizerCanvas.height);
             URL.revokeObjectURL(audioUrl);
