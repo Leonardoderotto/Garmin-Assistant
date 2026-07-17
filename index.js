@@ -1,5 +1,5 @@
 /**
- * G.A.R.M.I.N. Core Engine
+ * Genisiz Core Engine
  * Ein hochentwickelter Sci-Fi Sprachassistent mit Konversationsgedächtnis
  */
 
@@ -73,7 +73,7 @@ function bootSystem() {
     createStarField();
     
     // API Key prüfen
-    const apiKey = localStorage.getItem('garmin_openai_key');
+    const apiKey = localStorage.getItem('genisiz_openai_key');
     
     setTimeout(() => {
         if (!apiKey) {
@@ -110,7 +110,7 @@ function shutdownSystem() {
 // 3. EINSTELLUNGEN & MODAL (API KEY)
 settingsBtn.addEventListener('click', () => {
     // Geladenen Key anzeigen falls vorhanden
-    const savedKey = localStorage.getItem('garmin_openai_key');
+    const savedKey = localStorage.getItem('genisiz_openai_key');
     if (savedKey) apiKeyInput.value = savedKey;
     modalOverlay.classList.add('active');
 });
@@ -129,14 +129,14 @@ modalOverlay.addEventListener('click', (e) => {
 saveApiKeyBtn.addEventListener('click', () => {
     const key = apiKeyInput.value.trim();
     if (key) {
-        localStorage.setItem('garmin_openai_key', key);
+        localStorage.setItem('genisiz_openai_key', key);
         modalOverlay.classList.remove('active');
         if (body.classList.contains('system-active')) {
             statusText.textContent = "System bereit.";
             writeTerminalText(leftOutput, "Verbindung zum kognitiven Kern erfolgreich hergestellt.");
         }
     } else {
-        localStorage.removeItem('garmin_openai_key');
+        localStorage.removeItem('genisiz_openai_key');
         alert("API-Key entfernt.");
     }
 });
@@ -308,7 +308,7 @@ orb.addEventListener('click', () => {
     if (!body.classList.contains('system-active')) return;
     
     if (synth && synth.speaking) {
-        synth.cancel(); // Abbrechen, falls Garmin gerade noch spricht
+        synth.cancel(); // Abbrechen, falls Genisiz gerade noch spricht
     }
     
     if (isListening) {
@@ -324,7 +324,7 @@ orb.addEventListener('click', () => {
 
 // 8. CHATGPT API ANFRAGE & ANTWORT-VERARBEITUNG WITH CONTEXT MEMORY
 async function processQuery(query) {
-    const apiKey = localStorage.getItem('garmin_openai_key');
+    const apiKey = localStorage.getItem('genisiz_openai_key');
     if (!apiKey) {
         await writeTerminalText(rightOutput, "SYSTEM: Fehler. Kein OpenAI API-Schlüssel konfiguriert. Bitte öffne die Einstellungen oben links.");
         speak("Bitte füge einen API-Schlüssel in den Einstellungen hinzu.");
@@ -355,7 +355,7 @@ async function processQuery(query) {
                 messages: [
                     { 
                         role: 'system', 
-                        content: 'Du bist G.A.R.M.I.N, ein hochentwickelter KI-Assistent mit einer präzisen, leicht kühlen, aber extrem loyalen und hilfsbereiten Sci-Fi-Persönlichkeit (ähnlich wie J.A.R.V.I.S.). Antworte stets prägnant, intelligent und auf Deutsch. Vermeide zu lange Absätze.' 
+                        content: 'Du bist Genisiz, ein hochentwickelter KI-Assistent mit einer präzisen, leicht kühlen, aber extrem loyalen und hilfsbereiten Sci-Fi-Persönlichkeit (ähnlich wie J.A.R.V.I.S.). Antworte stets prägnant, intelligent und auf Deutsch. Vermeide zu lange Absätze.' 
                     },
                     ...conversationHistory
                 ],
@@ -370,13 +370,13 @@ async function processQuery(query) {
         const data = await response.json();
         const reply = data.choices[0].message.content;
         
-        // 4. Garmins Antwort ebenfalls ins Gedächtnis aufnehmen
+        // 4. Genisiz' Antwort ebenfalls ins Gedächtnis aufnehmen
         conversationHistory.push({ role: 'assistant', content: reply });
         
         statusText.textContent = "Antwort empfangen.";
-        await writeTerminalText(rightOutput, `GARMIN: "${reply}"`);
+        await writeTerminalText(rightOutput, `GENISIZ: "${reply}"`);
         
-        // Garmin spricht die Antwort aus
+        // Genisiz spricht die Antwort aus
         speak(reply);
         
     } catch (error) {
