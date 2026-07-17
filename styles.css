@@ -5,6 +5,10 @@
     --neon-red: #ff0844;
     --neon-red-glow: rgba(255, 8, 68, 0.6);
     --dark-blue: #162235;
+    
+    /* Diese Variablen werden vom JS dynamisch überschrieben */
+    --current-star-color: #00f2fe;
+    --current-star-glow: rgba(0, 242, 254, 0.6);
 }
 
 body {
@@ -219,8 +223,9 @@ body.system-active .star-field {
 .star {
     position: absolute;
     border-radius: 50%;
-    background-color: var(--current-star-color, var(--neon-cyan));
-    box-shadow: 0 0 8px var(--current-star-glow, var(--neon-glow));
+    /* Verwendet jetzt sauber die dynamischen Variablen aus JS */
+    background-color: var(--current-star-color);
+    box-shadow: 0 0 8px var(--current-star-glow);
     animation: floatAndPulse 4s infinite ease-in-out alternate;
     transition: background-color 0.8s ease, box-shadow 0.8s ease;
 }
@@ -252,7 +257,7 @@ body.system-active .star-field {
     padding: 0;
     margin: 0;
     z-index: 10;
-    text-shadow: 0 0 12px var(--current-star-glow, var(--neon-glow));
+    text-shadow: 0 0 12px var(--current-star-glow);
     pointer-events: none;
     transform: scale(0.8);
     opacity: 0;
@@ -466,14 +471,14 @@ body.system-listening .orb {
 }
 
 input:checked + .slider {
-    border-color: var(--current-star-color, var(--neon-cyan));
-    box-shadow: 0 0 15px var(--current-star-glow, var(--neon-glow));
+    border-color: var(--current-star-color);
+    box-shadow: 0 0 15px var(--current-star-glow);
 }
 
 input:checked + .slider:before {
     transform: translateX(32px);
     background-color: #ffffff;
-    box-shadow: 0 0 10px #ffffff, 0 0 20px var(--current-star-color, var(--neon-cyan));
+    box-shadow: 0 0 10px #ffffff, 0 0 20px var(--current-star-color);
 }
 
 /* === RESTELEMENTE === */

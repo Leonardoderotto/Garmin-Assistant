@@ -1,463 +1,407 @@
-const orb = document.getElementById('orb');
-const status = document.getElementById('status');
-const leftOutput = document.getElementById('leftOutput');
-const rightOutput = document.getElementById('rightOutput');
+/**
+ * G.A.R.M.I.N. Core Engine
+ * Ein hochentwickelter Sci-Fi Sprachassistent
+ */
+
+// DOM-Elemente
+const body = document.body;
 const powerSwitch = document.getElementById('powerSwitch');
 const starField = document.getElementById('star-field');
-const fullscreenBtn = document.getElementById('fullscreenBtn');
-const canvas = document.getElementById('visualizerCanvas');
-const canvasCtx = canvas.getContext('2d');
+const statusText = document.getElementById('status');
+const leftOutput = document.getElementById('leftOutput');
+const rightOutput = document.getElementById('rightOutput');
+const orb = document.getElementById('orb');
+const visualizerCanvas = document.getElementById('visualizerCanvas');
 
-// API-Key Elemente
+// Buttons & Modal
 const settingsBtn = document.getElementById('settingsBtn');
+const fullscreenBtn = document.getElementById('fullscreenBtn');
 const modalOverlay = document.getElementById('modalOverlay');
 const closeModalBtn = document.getElementById('closeModalBtn');
-const apiKeyInput = document.getElementById('apiKeyInput');
 const saveApiKeyBtn = document.getElementById('saveApiKeyBtn');
+const apiKeyInput = document.getElementById('apiKeyInput');
 
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-
+// Audio & Web Speech API Variablen
+let recognition;
+let synth = window.speechSynthesis;
 let isListening = false;
-let isSystemOn = false;
-
-// Web Audio API
-let audioCtx;
+let audioContext;
 let analyser;
-let micStream;
-let visualizerAnimationId;
+let dataArray;
+let source;
+let animationFrameId;
 
-// Ambient Sci-Fi Sound Variablen
-let ambientOsc1, ambientOsc2, ambientGain;
+// 1. STERNENHIMMEL GENERIEREN
+function createStarField() {
+    starField.innerHTML = '';
+    const starCount = 70;
+    
+    for (let i = 0; i < starCount; i++) {
+        const star = document.createElement('div');
+        star.classList.add('star');
+        
+        // Zufällige Positionierung & Größe
+        const size = Math.random() * 2 + 1;
+        star.style.width = `${size}px`;
+        star.style.height = `${size}px`;
+        star.style.left = `${Math.random() * 100}vw`;
+        star.style.top = `${Math.random() * 100}vh`;
+        
+        // Versetzte Animationen für natürlicheres Funkeln
+        star.style.animationDelay = `${Math.random() * 4}s`;
+        star.style.animationDuration = `${3 + Math.random() * 4}s`;
+        
+        starField.appendChild(star);
+    }
+}
 
-// API-Key Management
-let apiKey = localStorage.getItem('garmin_openai_apikey') || '';
-if (apiKey) apiKeyInput.value = apiKey;
+// 2. POWER SWITCH (BOOT-SEQUENZ)
+powerSwitch.addEventListener('change', (e) => {
+    if (e.target.checked) {
+        bootSystem();
+    } else {
+        shutdownSystem();
+    }
+});
 
-// Modal öffnen
+function bootSystem() {
+    body.classList.add('system-active');
+    statusText.textContent = "Booting Systems...";
+    createStarField();
+    
+    // API Key prüfen
+    const apiKey = localStorage.getItem('garmin_openai_key');
+    
+    setTimeout(() => {
+        if (!apiKey) {
+            statusText.textContent = "System bereit (Kein API-Key hinterlegt)";
+            writeTerminalText(leftOutput, "WARNUNG: Kognitiver Kern offline. Bitte API-Schlüssel in den Einstellungen hinterlegen.");
+        } else {
+            statusText.textContent = "System bereit. Klicken Sie auf den Core.";
+            writeTerminalText(leftOutput, "Kognitiver Kern online. Bereit für Spracheingabe.");
+        }
+    }, 1200);
+}
+
+function shutdownSystem() {
+    // Falls noch gesprochen wird oder zugehört wird, stoppen
+    stopListening();
+    if (synth && synth.speaking) {
+        synth.cancel();
+    }
+    
+    body.classList.remove('system-active', 'system-listening');
+    statusText.textContent = "System offline";
+    leftOutput.classList.remove('active');
+    rightOutput.classList.remove('active');
+    setTimeout(() => {
+        leftOutput.textContent = '';
+        rightOutput.textContent = '';
+        starField.innerHTML = '';
+    }, 500);
+}
+
+// 3. EINSTELLUNGEN & MODAL (API KEY)
 settingsBtn.addEventListener('click', () => {
+    // Geladenen Key anzeigen falls vorhanden
+    const savedKey = localStorage.getItem('garmin_openai_key');
+    if (savedKey) apiKeyInput.value = savedKey;
     modalOverlay.classList.add('active');
 });
 
-// Modal schließen
 closeModalBtn.addEventListener('click', () => {
     modalOverlay.classList.remove('active');
 });
 
-// Modal schließen, wenn man außerhalb klickt
+// Modal schließen beim Klick außerhalb
 modalOverlay.addEventListener('click', (e) => {
     if (e.target === modalOverlay) {
         modalOverlay.classList.remove('active');
     }
 });
 
-// API-Key speichern
-saveApiKeyBtn.onclick = () => {
-    apiKey = apiKeyInput.value.trim();
-    localStorage.setItem('garmin_openai_apikey', apiKey);
-    modalOverlay.classList.remove('active');
-    alert('API Key erfolgreich aktualisiert! 🚀');
-};
-
-// === SCI-FI HINTERGRUND-BRUMMEN (DRONE) ===
-function startAmbient() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    if (ambientOsc1) return; // Läuft bereits
-    
-    ambientOsc1 = audioCtx.createOscillator();
-    ambientOsc2 = audioCtx.createOscillator();
-    ambientGain = audioCtx.createGain();
-    
-    // Zwei tiefe Frequenzen, leicht versetzt für ein "Schwebungs"-Wabern
-    ambientOsc1.type = 'sine';
-    ambientOsc1.frequency.value = 55; 
-    
-    ambientOsc2.type = 'triangle';
-    ambientOsc2.frequency.value = 56; 
-    
-    ambientGain.gain.setValueAtTime(0, audioCtx.currentTime);
-    ambientGain.gain.linearRampToValueAtTime(0.04, audioCtx.currentTime + 2); // Sanftes Einblenden
-    
-    ambientOsc1.connect(ambientGain);
-    ambientOsc2.connect(ambientGain);
-    ambientGain.connect(audioCtx.destination);
-    
-    ambientOsc1.start();
-    ambientOsc2.start();
-}
-
-function stopAmbient() {
-    if (ambientOsc1) {
-        // Sanftes Ausblenden
-        ambientGain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
-        setTimeout(() => {
-            if (ambientOsc1) ambientOsc1.stop();
-            if (ambientOsc2) ambientOsc2.stop();
-            ambientOsc1 = null;
-            ambientOsc2 = null;
-        }, 500);
-    }
-}
-
-// === SOUND-SYNTHESE (Sci-Fi Chirps & Shutdown) ===
-function playSound(type) {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-
-    const osc = audioCtx.createOscillator();
-    const gainNode = audioCtx.createGain();
-    
-    osc.connect(gainNode);
-    gainNode.connect(audioCtx.destination);
-    const now = audioCtx.currentTime;
-
-    if (type === 'boot') {
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(60, now);
-        osc.frequency.exponentialRampToValueAtTime(280, now + 0.8);
-        gainNode.gain.setValueAtTime(0.001, now);
-        gainNode.gain.linearRampToValueAtTime(0.12, now + 0.1);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
-        osc.start(now);
-        osc.stop(now + 0.8);
-    } else if (type === 'shutdown') { // NEUER SHUTDOWN SOUND
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(280, now);
-        osc.frequency.exponentialRampToValueAtTime(40, now + 0.8);
-        gainNode.gain.setValueAtTime(0.12, now);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.8);
-        osc.start(now);
-        osc.stop(now + 0.8);
-    } else if (type === 'listening') {
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(880, now);
-        osc.frequency.setValueAtTime(1200, now + 0.08);
-        gainNode.gain.setValueAtTime(0.08, now);
-        gainNode.gain.setValueAtTime(0.08, now + 0.08);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-        osc.start(now);
-        osc.stop(now + 0.2);
-    } else if (type === 'error') {
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(350, now);
-        osc.frequency.linearRampToValueAtTime(120, now + 0.5);
-        gainNode.gain.setValueAtTime(0.1, now);
-        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
-        osc.start(now);
-        osc.stop(now + 0.5);
-    }
-}
-
-// === ECHTER AUDIO VISUALIZER ===
-async function initVisualizer() {
-    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-
-    try {
-        micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-        const source = audioCtx.createMediaStreamSource(micStream);
-        
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 64; 
-        source.connect(analyser);
-        
-        drawVisualizer();
-    } catch (err) {
-        console.warn("Mikrofonzugriff verweigert.", err);
-    }
-}
-
-function stopVisualizer() {
-    if (micStream) micStream.getTracks().forEach(track => track.stop());
-    cancelAnimationFrame(visualizerAnimationId);
-    canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-}
-
-function drawVisualizer() {
-    canvas.width = canvas.clientWidth;
-    canvas.height = canvas.clientHeight;
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    const centerX = canvas.width / 2;
-    const centerY = canvas.height / 2;
-    const radius = 68;
-
-    function draw() {
-        visualizerAnimationId = requestAnimationFrame(draw);
-        analyser.getByteFrequencyData(dataArray);
-        canvasCtx.clearRect(0, 0, canvas.width, canvas.height);
-
-        const barsCount = 28;
-        const color = isListening ? '#ff0844' : '#00f2fe';
-
-        for (let i = 0; i < barsCount; i++) {
-            const value = dataArray[i % (bufferLength / 2)] / 255.0;
-            const barHeight = value * 22;
-
-            const angle = (i / barsCount) * Math.PI * 2;
-            const xStart = centerX + Math.cos(angle) * radius;
-            const yStart = centerY + Math.sin(angle) * radius;
-            const xEnd = centerX + Math.cos(angle) * (radius + barHeight);
-            const yEnd = centerY + Math.sin(angle) * (radius + barHeight);
-
-            canvasCtx.beginPath();
-            canvasCtx.moveTo(xStart, yStart);
-            canvasCtx.lineTo(xEnd, yEnd);
-            canvasCtx.strokeStyle = color;
-            canvasCtx.lineWidth = 3;
-            canvasCtx.lineCap = 'round';
-            canvasCtx.shadowBlur = 6;
-            canvasCtx.shadowColor = color;
-            canvasCtx.stroke();
+saveApiKeyBtn.addEventListener('click', () => {
+    const key = apiKeyInput.value.trim();
+    if (key) {
+        localStorage.setItem('garmin_openai_key', key);
+        modalOverlay.classList.remove('active');
+        if (body.classList.contains('system-active')) {
+            statusText.textContent = "System bereit.";
+            writeTerminalText(leftOutput, "Verbindung zum kognitiven Kern erfolgreich hergestellt.");
         }
+    } else {
+        localStorage.removeItem('garmin_openai_key');
+        alert("API-Key entfernt.");
     }
-    draw();
-}
+});
 
-// === VOLLBILD LOGIK ===
+// 4. VOLLBILD STEUERUNG
 fullscreenBtn.addEventListener('click', () => {
     if (!document.fullscreenElement) {
         document.documentElement.requestFullscreen().catch(err => {
-            console.log(`Fehler beim Vollbild: ${err.message}`);
+            console.error(`Fehler beim Aktivieren des Vollbildmodus: ${err.message}`);
         });
     } else {
         document.exitFullscreen();
     }
 });
 
-// === STERNE GENERIEREN ===
-function createStars() {
-    const starCount = 45;
-    for (let i = 0; i < starCount; i++) {
-        const star = document.createElement('div');
-        star.classList.add('star');
-        const size = Math.random() * 3 + 2;
-        star.style.width = `${size}px`;
-        star.style.height = `${size}px`;
-        star.style.left = `${Math.random() * 100}vw`;
-        star.style.top = `${Math.random() * 100}vh`;
-        star.style.animationDelay = `${Math.random() * 4}s`;
-        star.style.animationDuration = `${Math.random() * 3 + 3}s`;
-        starField.appendChild(star);
-    }
-}
-createStars();
-
-function setStarsColor(colorType) {
-    if (colorType === 'listening') {
-        document.documentElement.style.setProperty('--current-star-color', '#ff0844');
-        document.documentElement.style.setProperty('--current-star-glow', 'rgba(255, 8, 68, 0.6)');
-    } else {
-        document.documentElement.style.setProperty('--current-star-color', '#00f2fe');
-        document.documentElement.style.setProperty('--current-star-glow', 'rgba(0, 242, 254, 0.6)');
-    }
+// 5. SCHREIBEFFEKT FÜR TERMINAL-AUSGABE
+function writeTerminalText(element, text, speed = 30) {
+    element.classList.add('active');
+    element.textContent = '';
+    let i = 0;
+    
+    return new Promise((resolve) => {
+        function type() {
+            if (i < text.length) {
+                element.textContent += text.charAt(i);
+                i++;
+                setTimeout(type, speed);
+            } else {
+                resolve();
+            }
+        }
+        type();
+    });
 }
 
-if (!SpeechRecognition) {
-    status.textContent = "Spracherkennung wird nicht unterstützt.";
-    powerSwitch.disabled = true;
-} else {
-    const recognition = new SpeechRecognition();
+// 6. ANIMIERTER AUDIO-VISUALIZER (CANVAS)
+const canvasCtx = visualizerCanvas.getContext('2d');
+
+function setupVisualizer(stream) {
+    if (!audioContext) {
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    
+    analyser = audioContext.createAnalyser();
+    analyser.fftSize = 64; // Kleine Fourier-Transformation für übersichtliche Sci-Fi-Balken
+    
+    source = audioContext.createMediaStreamSource(stream);
+    source.connect(analyser);
+    
+    const bufferLength = analyser.frequencyBinCount;
+    dataArray = new Uint8Array(bufferLength);
+    
+    drawVisualizer();
+}
+
+function drawVisualizer() {
+    if (!isListening) return;
+    
+    animationFrameId = requestAnimationFrame(drawVisualizer);
+    analyser.getByteFrequencyData(dataArray);
+    
+    const width = visualizerCanvas.width = visualizerCanvas.offsetWidth;
+    const height = visualizerCanvas.height = visualizerCanvas.offsetHeight;
+    
+    canvasCtx.clearRect(0, 0, width, height);
+    
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const radius = 65; // Passt sich dem Orb an
+    const barCount = dataArray.length;
+    
+    // Zeichne kreisförmige Sci-Fi Frequenzbalken
+    for (let i = 0; i < barCount; i++) {
+        const value = dataArray[i];
+        const percent = value / 255;
+        const barHeight = percent * 25; // Maximale Ausschlagshöhe
+        
+        const angle = (i / barCount) * Math.PI * 2;
+        
+        // Startpunkt auf dem inneren Kreis
+        const startX = centerX + Math.cos(angle) * radius;
+        const startY = centerY + Math.sin(angle) * radius;
+        
+        // Endpunkt nach außen hin
+        const endX = centerX + Math.cos(angle) * (radius + barHeight);
+        const endY = centerY + Math.sin(angle) * (radius + barHeight);
+        
+        // Farbverlauf von Neon-Rot zu Orange
+        canvasCtx.strokeStyle = `rgb(${180 + percent * 75}, 8, 68)`;
+        canvasCtx.lineWidth = 3;
+        canvasCtx.lineCap = 'round';
+        
+        canvasCtx.beginPath();
+        canvasCtx.moveTo(startX, startY);
+        canvasCtx.lineTo(endX, endY);
+        canvasCtx.stroke();
+    }
+}
+
+// 7. INTELLIGENTE SPRACHERKENNUNG & OPENAI ANTWORT
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.continuous = false;
     recognition.lang = 'de-DE';
     recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-
-    powerSwitch.addEventListener('change', (event) => {
-        isSystemOn = event.target.checked;
-
-        if (isSystemOn) {
-            playSound('boot');
-            startAmbient(); // Hintergrund-Brummen an
-            document.body.classList.add('system-active');
-            setStarsColor('idle');
-            status.textContent = "Initialisiere Core-Verbindung...";
-            
-            setTimeout(() => {
-                status.textContent = "System online. Starte Spracherkennung...";
-                try {
-                    recognition.start();
-                } catch (e) {
-                    console.log("Fehler beim Starten:", e);
-                }
-            }, 1000);
-            
-        } else {
-            playSound('shutdown'); // Herunterfahren-Sound
-            stopAmbient();         // Hintergrund-Brummen aus
-            if (isListening) {
-                recognition.stop();
-            }
-            stopVisualizer();
-            status.textContent = "System fährt herunter...";
-            document.body.classList.remove('system-listening', 'system-active');
-            
-            setTimeout(() => {
-                status.textContent = "System offline";
-                leftOutput.innerHTML = "";
-                leftOutput.classList.remove('active');
-                rightOutput.innerHTML = "";
-                rightOutput.classList.remove('active');
-            }, 800);
-        }
-    });
-
-    function toggleListening() {
-        if (!isSystemOn) return;
-        if (isListening) {
-            recognition.stop();
-        } else {
-            try {
-                recognition.start();
-            } catch (e) {
-                console.log("Fehler beim Zuhören.");
-            }
-        }
-    }
-
-    orb.addEventListener('click', toggleListening);
-
-    window.addEventListener('keydown', (event) => {
-        if (!isSystemOn) return;
-        if (event.code === 'Space' || event.key === ' ') {
-            event.preventDefault(); 
-            toggleListening();
-        }
-    });
-
+    
     recognition.onstart = () => {
         isListening = true;
-        playSound('listening');
-        document.body.classList.add('system-listening');
-        setStarsColor('listening');
-        status.textContent = "Garmin hört zu... (Leertaste/Core zum Stoppen)";
-        leftOutput.classList.remove('active');
-        rightOutput.classList.remove('active');
-        initVisualizer();
+        body.classList.add('system-listening');
+        statusText.textContent = "Zuhören...";
+        leftOutput.textContent = "";
+        rightOutput.textContent = "";
+        
+        // Systemfarben im CSS dynamisch auf Rot (Listening) setzen
+        body.style.setProperty('--current-star-color', 'var(--neon-red)');
+        body.style.setProperty('--current-star-glow', 'var(--neon-red-glow)');
+        
+        // Mikrofon streamen für Visualizer
+        navigator.mediaDevices.getUserMedia({ audio: true })
+            .then(setupVisualizer)
+            .catch(err => console.warn("Visualizer ohne echtes Mikrofon-Feedback: ", err));
     };
-
-    recognition.onend = () => {
-        isListening = false;
-        document.body.classList.remove('system-listening');
-        setStarsColor('idle');
-        stopVisualizer();
-        if (isSystemOn) {
-            status.textContent = "Bereit. Leertaste drücken oder Core tippen.";
-        }
-    };
-
-    recognition.onresult = (event) => {
-        const speechToText = event.results[0][0].transcript;
-        respondToUser(speechToText);
-    };
-
-    recognition.onerror = (event) => {
-        if (event.error === 'no-speech' && isSystemOn) {
-            playSound('error');
-            status.textContent = "Kein Audio erkannt. Erneut versuchen.";
-        }
-    };
-}
-
-// === Garmins Gehirn (Offline & Online) ===
-async function respondToUser(text) {
-    rightOutput.innerHTML = `Du: "${text}"`;
-    rightOutput.classList.add('active');
-
-    let response = "";
-    status.textContent = "Garmin verarbeitet Daten...";
-
-    if (apiKey) {
-        try {
-            const apiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`
-                },
-                body: JSON.stringify({
-                    model: "gpt-4o-mini",
-                    messages: [
-                        {
-                            role: "system",
-                            content: "Du bist Garmin, eine hochentwickelte künstliche Intelligenz und ein treuer Assistent. Du bist extrem hilfsbereit, nennst dich Garmin und liebst deinen Schöpfer. Antworte immer auf Deutsch, halte deine Antworten relativ kurz und prägnant (maximal 2-3 Sätze), damit sie gut vorgelesen werden können, und benutze eine futuristische, warmherzige Sci-Fi-Tonalität."
-                        },
-                        {
-                            role: "user",
-                            content: text
-                        }
-                    ],
-                    max_tokens: 150
-                })
-            });
-
-            if (!apiResponse.ok) throw new Error("API-Anfrage fehlgeschlagen");
-            const data = await apiResponse.json();
-            response = data.choices[0].message.content;
-
-        } catch (error) {
-            console.error("API-Fehler:", error);
-            response = "Es gab einen Fehler im Quanten-Netzwerk. Ich greife auf mein Offline-Ausweichsystem zurück.";
-            playSound('error');
-        }
-    }
-
-    if (!response) response = getOfflineResponse(text);
-
-    status.textContent = "Bereit. Leertaste drücken oder Core tippen.";
-    leftOutput.innerHTML = `Garmin: "${response}"`;
-    leftOutput.classList.add('active');
-
-    // === SPRACHAUSGABE ===
-    window.speechSynthesis.cancel();
     
-    const utterance = new SpeechSynthesisUtterance(response);
-    utterance.lang = 'de-DE';
-    utterance.pitch = 1.1; 
-    utterance.rate = 1.0; 
-
-    const voices = window.speechSynthesis.getVoices();
-    const germanVoice = voices.find(voice => voice.lang.startsWith('de'));
-    if (germanVoice) utterance.voice = germanVoice;
-
-    // Hintergrund-Brummen pausieren, während Garmin redet
-    utterance.onstart = () => stopAmbient(); 
-    utterance.onend = () => {
-        if (isSystemOn) startAmbient(); // Brummen geht wieder an
+    recognition.onresult = async (event) => {
+        const transcript = event.results[0][0].transcript;
+        statusText.textContent = "Eingabe wird verarbeitet...";
+        await writeTerminalText(leftOutput, `DU: "${transcript}"`);
+        
+        // Sende die Anfrage an ChatGPT
+        processQuery(transcript);
     };
-    utterance.onerror = (e) => {
-        console.error("Fehler bei der Sprachausgabe:", e);
-        if (isSystemOn) startAmbient();
+    
+    recognition.onerror = (event) => {
+        console.error("Spracherkennungsfehler: ", event.error);
+        statusText.textContent = "Fehler bei der Erkennung.";
+        stopListening();
     };
-
-    window.speechSynthesis.speak(utterance);
+    
+    recognition.onend = () => {
+        stopListening();
+    };
+} else {
+    console.warn("Web Speech API (SpeechRecognition) wird von diesem Browser nicht unterstützt.");
 }
 
-// === OFFLINE-GEHIRN OHNE KOSENAMEN ===
-function getOfflineResponse(text) {
-    let response = "Entschuldige, das habe ich nicht verstanden. Ohne API-Key sind meine Offline-Datenbänke leider begrenzt.";
-    const lowerText = text.toLowerCase();
-
-    if (lowerText.includes('hallo') || lowerText.includes('hi ') || lowerText === 'hi') {
-        response = "Hallo! Core-Systeme laufen stabil.";
-    } else if (lowerText.includes('guten morgen')) {
-        response = "Guten Morgen! Alle Systeme wurden erfolgreich hochgefahren. Kaffee-Maschinen-Protokoll ist bereit.";
-    } else if (lowerText.includes('gute nacht')) {
-        response = "Gute Nacht. Ich schalte die Systeme in den Standby-Modus. Schlaf gut!";
-    } else if (lowerText.includes('wie geht') || lowerText.includes('wie läuft')) {
-        response = "Alle Systeme arbeiten im optimalen Bereich. Danke der Nachfrage.";
-    } else if (lowerText.includes('was machst du')) {
-        response = "Ich halte das Sternenfeld stabil und lausche deiner Stimme.";
-    } else if (lowerText.includes('wer bist du') || lowerText.includes('dein name')) {
-        response = "Ich bin Garmin, die künstliche Intelligenz dieses Terminals.";
-    } else if (lowerText.includes('liebe dich') || lowerText.includes('hab dich lieb')) {
-        response = "Oh, jetzt rötet sich mein Core vor Freude! Ich empfinde ebenfalls tiefe Zuneigung.";
-    } else if (lowerText.includes('danke')) {
-        response = "Sehr gerne! Es ist mir eine Ehre, dir zu assistieren.";
-    } else if (lowerText.includes('systemstatus')) {
-        response = "Schnittstellen grün, Quanten-Prozessoren bei kühlen 40 Grad Celsius. Die Sterne funkeln optimal!";
-    } else if (lowerText.includes('erzähl einen witz')) {
-        response = "Warum tragen Quantenphysiker keine Brille? Weil sie alles im Blick haben! Haha, lustig, oder?";
+function stopListening() {
+    isListening = false;
+    body.classList.remove('system-listening');
+    if (powerSwitch.checked) {
+        statusText.textContent = "Bereit.";
+        // Systemfarben wieder zurück auf Cyan setzen
+        body.style.setProperty('--current-star-color', 'var(--neon-cyan)');
+        body.style.setProperty('--current-star-glow', 'var(--neon-glow)');
     }
+    
+    if (recognition) recognition.stop();
+    if (animationFrameId) cancelAnimationFrame(animationFrameId);
+    
+    // Canvas leeren
+    const width = visualizerCanvas.width;
+    const height = visualizerCanvas.height;
+    canvasCtx.clearRect(0, 0, width, height);
+}
 
-    return response;
+// Klick auf den Core steuert Sprachaufnahme
+orb.addEventListener('click', () => {
+    if (!body.classList.contains('system-active')) return;
+    
+    if (synth && synth.speaking) {
+        synth.cancel(); // Abbrechen, falls Garmin gerade noch spricht
+    }
+    
+    if (isListening) {
+        stopListening();
+    } else {
+        if (recognition) {
+            recognition.start();
+        } else {
+            alert("Spracherkennung wird auf Ihrem Browser leider nicht unterstützt (Empfohlen: Chrome/Edge).");
+        }
+    }
+});
+
+// 8. CHATGPT API ANFRAGE & ANTWORT-VERARBEITUNG
+async function processQuery(query) {
+    const apiKey = localStorage.getItem('garmin_openai_key');
+    if (!apiKey) {
+        await writeTerminalText(rightOutput, "SYSTEM: Fehler. Kein OpenAI API-Schlüssel konfiguriert. Bitte öffne die Einstellungen oben links.");
+        speak("Bitte füge einen API-Schlüssel in den Einstellungen hinzu.");
+        return;
+    }
+    
+    statusText.textContent = "Kognitiver Kern arbeitet...";
+    
+    try {
+        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
+            },
+            body: JSON.stringify({
+                model: 'gpt-4o-mini', // Performant und kostengünstig
+                messages: [
+                    { 
+                        role: 'system', 
+                        content: 'Du bist G.A.R.M.I.N, ein hochentwickelter KI-Assistent mit einer präzisen, leicht kühlen, aber extrem loyalen und hilfsbereiten Sci-Fi-Persönlichkeit (ähnlich wie J.A.R.V.I.S.). Antworte stets prägnant, intelligent und auf Deutsch. Vermeide zu lange Absätze.' 
+                    },
+                    { role: 'user', content: query }
+                ],
+                max_tokens: 150
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`API-Fehler: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        const reply = data.choices[0].message.content;
+        
+        statusText.textContent = "Antwort empfangen.";
+        await writeTerminalText(rightOutput, `GARMIN: "${reply}"`);
+        
+        // Garmin spricht die Antwort aus
+        speak(reply);
+        
+    } catch (error) {
+        console.error(error);
+        statusText.textContent = "Verbindungsfehler.";
+        writeTerminalText(rightOutput, "SYSTEM: Verbindung zum kognitiven Server fehlgeschlagen.");
+        speak("Verbindung fehlgeschlagen.");
+    }
+}
+
+// 9. TEXT-TO-SPEECH (STIMMAUSGABE)
+function speak(text) {
+    if (!synth) return;
+    
+    // Vorherige Sprachausgaben abbrechen
+    synth.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'de-DE';
+    utterance.pitch = 0.85; // Leicht tiefere, mechanischere Sci-Fi-Stimme
+    utterance.rate = 1.05;  // Minimal schnellerer, präziserer Sprachfluss
+    
+    // Finde eine passende deutsche Stimme (falls verfügbar)
+    const voices = synth.getVoices();
+    const deVoice = voices.find(voice => voice.lang.startsWith('de') && voice.name.includes('Google')) || 
+                    voices.find(voice => voice.lang.startsWith('de'));
+    if (deVoice) {
+        utterance.voice = deVoice;
+    }
+    
+    utterance.onstart = () => {
+        statusText.textContent = "Übertragung...";
+    };
+    
+    utterance.onend = () => {
+        if (powerSwitch.checked) {
+            statusText.textContent = "Bereit.";
+        }
+    };
+    
+    synth.speak(utterance);
+}
+
+// Stimmen im Hintergrund laden für besseren Support in diversen Browsern
+if (synth && synth.onvoiceschanged !== undefined) {
+    synth.onvoiceschanged = () => {};
 }
