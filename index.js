@@ -1,6 +1,6 @@
 /**
  * G.A.R.M.I.N. Core Engine
- * Ein hochentwickelter Sci-Fi Sprachassistent
+ * Ein hochentwickelter Sci-Fi Sprachassistent mit Konversationsgedächtnis
  */
 
 // DOM-Elemente
@@ -30,6 +30,9 @@ let analyser;
 let dataArray;
 let source;
 let animationFrameId;
+
+// SYSTEM-GEDÄCHTNIS (Speichert den Gesprächsverlauf)
+let conversationHistory = [];
 
 // 1. STERNENHIMMEL GENERIEREN
 function createStarField() {
@@ -89,6 +92,9 @@ function shutdownSystem() {
     if (synth && synth.speaking) {
         synth.cancel();
     }
+    
+    // Gedächtnis beim System-Shutdown komplett löschen
+    conversationHistory = [];
     
     body.classList.remove('system-active', 'system-listening');
     statusText.textContent = "System offline";
@@ -316,7 +322,7 @@ orb.addEventListener('click', () => {
     }
 });
 
-// 8. CHATGPT API ANFRAGE & ANTWORT-VERARBEITUNG
+// 8. CHATGPT API ANFRAGE & ANTWORT-VERARBEITUNG WITH CONTEXT MEMORY
 async function processQuery(query) {
     const apiKey = localStorage.getItem('garmin_openai_key');
     if (!apiKey) {
@@ -327,6 +333,15 @@ async function processQuery(query) {
     
     statusText.textContent = "Kognitiver Kern arbeitet...";
     
+    // 1. Deine aktuelle Frage im Verlauf speichern
+    conversationHistory.push({ role: 'user', content: query });
+    
+    // 2. Gedächtnis-Limitierung (Gegen zu hohe Token-Kosten)
+    // Hält die letzten 10 Nachrichten (5 Fragen + 5 Antworten) im Kopf
+    if (conversationHistory.length > 10) {
+        conversationHistory.shift();
+    }
+    
     try {
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
             method: 'POST',
@@ -335,13 +350,14 @@ async function processQuery(query) {
                 'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                model: 'gpt-4o-mini', // Performant und kostengünstig
+                model: 'gpt-4o-mini',
+                // 3. System-Prompt + den gesamten bisherigen Verlauf mitsenden
                 messages: [
                     { 
                         role: 'system', 
                         content: 'Du bist G.A.R.M.I.N, ein hochentwickelter KI-Assistent mit einer präzisen, leicht kühlen, aber extrem loyalen und hilfsbereiten Sci-Fi-Persönlichkeit (ähnlich wie J.A.R.V.I.S.). Antworte stets prägnant, intelligent und auf Deutsch. Vermeide zu lange Absätze.' 
                     },
-                    { role: 'user', content: query }
+                    ...conversationHistory
                 ],
                 max_tokens: 150
             })
@@ -354,6 +370,9 @@ async function processQuery(query) {
         const data = await response.json();
         const reply = data.choices[0].message.content;
         
+        // 4. Garmins Antwort ebenfalls ins Gedächtnis aufnehmen
+        conversationHistory.push({ role: 'assistant', content: reply });
+        
         statusText.textContent = "Antwort empfangen.";
         await writeTerminalText(rightOutput, `GARMIN: "${reply}"`);
         
@@ -365,6 +384,9 @@ async function processQuery(query) {
         statusText.textContent = "Verbindungsfehler.";
         writeTerminalText(rightOutput, "SYSTEM: Verbindung zum kognitiven Server fehlgeschlagen.");
         speak("Verbindung fehlgeschlagen.");
+        
+        // Bei Fehlern die unvollständige Anfrage entfernen, um das Gedächtnis sauber zu halten
+        conversationHistory.pop();
     }
 }
 
